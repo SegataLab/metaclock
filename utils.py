@@ -8,6 +8,12 @@ import sys
 from Bio import SeqIO
 from itertools import chain
 import argparse
+from collections import defaultdict
+from Bio.SeqRecord import SeqRecord
+from Bio.Alphabet import generic_dna
+from Bio.Seq import Seq
+from operator import itemgetter 
+
 
 def pattern_filtering(p,l):
 	"""
@@ -94,7 +100,136 @@ def out_stats(fna_file):
 		S = stats(Seq)
 		line = str(seq) + "\t" + str(S.calc_GapRatio())+ "\t" + str(S.calc_genome()[0])+ "\t" + str(S.calc_genome()[1]) + "\t" + str(S.calc_CG()) + '\n'
 		opt.write(line)
-	opt.close()	
+	opt.close()
+
+def homo_site_mapper(senario):
+	"""
+	It takes subject sequence and query sequence and their
+	alignment start positions, and map the postions of homologous
+	sites back to genome position.
+	"""	
+	sseq, s_start, s_end, qseq, q_start, q_end = senario
+	s_pos_lst = []
+	q_pos_lst = []
+	s_idx = s_start - 1
+	q_idx = q_start - 1
+	s_site_lst = []
+	q_site_lst = []
+	s_com_rev_flag = []
+	q_com_rev_flag = []
+	if ((s_end - s_start) > 0) & ((q_end - q_start) > 0):
+		for idx in range(len(sseq)):
+			s_site_lst.append(sseq[idx])
+			q_site_lst.append(qseq[idx])
+			s_com_rev_flag.append('NO')
+			q_com_rev_flag.append('NO')
+			if (sseq[idx] != '-') & (qseq[idx] != '-'):
+				s_pos_lst.append(s_idx)
+				q_pos_lst.append(q_idx)
+				s_idx += 1
+				q_idx += 1
+			elif (sseq[idx] != '-') & (qseq[idx] == '-'):
+				s_pos_lst.append(s_idx)
+				q_pos_lst.append('-')				
+				s_idx += 1
+			elif (sseq[idx] == '-') & (qseq[idx] != '-'):
+				s_pos_lst.append('-')
+				q_pos_lst.append(q_idx)
+				q_idx += 1
+			else:
+				s_pos_lst.append('-')
+				q_pos_lst.append('-')
+	
+	elif ((s_end - s_start) > 0) & ((q_end - q_start) < 0):
+		for idx in range(len(sseq)):
+			s_site_lst.append(sseq[idx])
+			q_site_lst.append(qseq[idx])
+			s_com_rev_flag.append('NO')
+			q_com_rev_flag.append('YES')			
+			if (sseq[idx] != '-') & (qseq[idx] != '-'):
+				s_pos_lst.append(s_idx)
+				q_pos_lst.append(q_idx)
+				s_idx += 1
+				q_idx -= 1
+			elif (sseq[idx] != '-') & (qseq[idx] == '-'):
+				s_pos_lst.append(s_idx)
+				q_pos_lst.append('-')
+				s_idx += 1
+			elif (sseq[idx] == '-') & (qseq[idx] != '-'):
+				s_pos_lst.append('-')
+				q_pos_lst.append(q_idx)
+				q_idx -= 1
+			else:
+				s_pos_lst.append('-')
+				q_pos_lst.append('-')
+
+	elif ((s_end - s_start) < 0) & ((q_end - q_start) > 0):
+		for idx in range(len(sseq)):
+			s_site_lst.append(sseq[idx])
+			q_site_lst.append(qseq[idx])
+			s_com_rev_flag.append('YES')
+			q_com_rev_flag.append('NO')
+			if (sseq[idx] != '-') & (qseq[idx] != '-'):
+				s_pos_lst.append(s_idx)
+				q_pos_lst.append(q_idx)
+				s_idx -= 1
+				q_idx += 1
+			elif (sseq[idx] != '-') & (qseq[idx] == '-'):
+				s_pos_lst.append(s_idx)
+				q_pos_lst.append('-')
+				s_idx -= 1
+			elif (sseq[idx] == '-') & (qseq[idx] != '-'):
+				s_pos_lst.append('-')
+				q_pos_lst.append(q_idx)
+				q_idx += 1
+			else:
+				s_pos_lst.append('-')
+				q_pos_lst.append('-')
+
+	else:
+		for idx in range(len(sseq)):
+			s_site_lst.append(sseq[idx])
+			q_site_lst.append(qseq[idx])
+			s_com_rev_flag.append('YES')
+			q_com_rev_flag.append('YES')			
+			if (sseq[idx] != '-') & (qseq[idx] != '-'):
+				s_pos_lst.append(s_idx)
+				q_pos_lst.append(q_idx)
+				s_idx -= 1
+				q_idx -= 1
+			elif (sseq[idx] != '-') & (qseq[idx] == '-'):
+				s_pos_lst.append(s_idx)
+				q_pos_lst.append('-')
+				s_idx -= 1
+			elif (sseq[idx] == '-') & (qseq[idx] != '-'):
+				s_pos_lst.append('-')
+				q_pos_lst.append(q_idx)
+				q_idx -= 1
+			else:
+				s_pos_lst.append('-')
+				q_pos_lst.append('-')			
+					
+	return q_pos_lst, s_pos_lst, q_site_lst, s_site_lst, q_com_rev_flag, s_com_rev_flag
+
+def ancient_sample_tailor(aln_dict, num_a = 1):
+	core_col = []
+	a_seqs = [list(aln_dict[a].seq) for a in aln_dict if a.startswith('a__')]	
+	for c in range(len(a_seqs[0])):
+		col_sites = [i[c] for i in a_seqs]
+		aDNA_nucleotide = len([i for i in col_sites if i != '-'])
+		if aDNA_nucleotide >= num_a:
+			core_col.append(c)
+		else:
+			continue
+
+	record_lst = []
+	for g in aln_dict:
+		seq_lst = list(aln_dict[g].seq)
+		core_seq = itemgetter(*core_col)(seq_lst)
+		seq="".join(core_seq)
+		_id = g
+		record_lst.append(SeqRecord(Seq(seq, generic_dna), id = _id, description = ''))
+	return record_lst
 
 
 
