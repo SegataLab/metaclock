@@ -37,6 +37,7 @@ def add_blast_approach_cmd_options(subparsers):
     Add command options for blast approach.
     """
     blast_parser = subparsers.add_parser('contigs_based',
+                                        help = 'Use contigs_based approach',
                                         description = 'Use contigs_based approach.')
 
     blast_parser.add_argument('ancient_sample',
@@ -152,6 +153,7 @@ def add_mapping_approach_cmd_options(subparsers):
   """
 
   mapping_parser = subparsers.add_parser('reads_based',
+                                          help = 'Use reads_based approach.',
                                           description = 'Use reads_based approach.')
   mapping_parser.add_argument('ref_fna',
                                 nargs = '?',
@@ -289,17 +291,18 @@ def add_alignment_tailor_cmd_options(subparsers):
   Add command options for alignment tailor
   """
   alignment_tailor_parser = subparsers.add_parser('alignment_tailor',
+                                                  help = 'Post-process by tailoring whole genome alignment!',
                                                   description='Post-process by tailoring whole genome alignment!\
                                                   caution: input file is suggested to start from file prefixed with\
                                                   TrimalGappyout')
   alignment_tailor_parser.add_argument('genome_alignment',
                                         nargs = '?',
-                                        help = 'Input the genome alignment to tailor for an improved phylogeny',
+                                        help = 'Input the genome alignment to tailor for an improved phylogeny.',
                                         metavar = 'GenomeAlignment',
                                         type = str)
   alignment_tailor_parser.add_argument('genome_alignment_opt',
                                         nargs = '?',
-                                        help = 'Output the genome alignment being tailored for an improved phylogeny',
+                                        help = 'Output the genome alignment being tailored for an improved phylogeny.',
                                         metavar = 'GenomeAlignmentOutput',
                                         type = str)
   alignment_tailor_parser.add_argument('-ras',
@@ -321,6 +324,38 @@ def add_alignment_tailor_cmd_options(subparsers):
                                        help = 'Remove gappy modern taxa based on gap ratio. Default [0.1].',
                                        type = float,
                                        default = 0.1)
+
+def add_alignment_assessing_cmd_option(subparsers):
+  """
+  Add command options for alignment assessing. 
+  """
+
+  alignment_assessing_parser = subparsers.add_parser('alignment_assessing',
+                                          help = 'Assessment of whole genome alignment.',
+                                          description = 'Features of assessing alignment composition.')
+  alignment_assessing_parser.add_argument('-opt_dir',
+                                          '--output_directory',
+                                          help = 'Specify the output directory. Current working directory as default.',
+                                          type = str,
+                                          default = None)
+  alignment_assessing_parser.add_argument('genome_alignment',
+                                          nargs = '?',
+                                          help = 'Input the genome alignment in fasta file.',
+                                          metavar = 'GenomeAlignment',
+                                          type = str)
+  alignment_assessing_parser.add_argument('-cov',
+                                          '--coverage',
+                                          help = 'Assessing coverage of RefSeq in each sample.',
+                                          action = 'store_true')
+  alignment_assessing_parser.add_argument('-misinfo_col_dist',
+                                          '--missinginfo_column_distribution',
+                                          help = 'Plot the distribution of columns with missing information',
+                                          action = 'store_true')
+  alignment_assessing_parser.add_argument('-vs',
+                                          '--variant_sites',
+                                          help = 'Report the absolute number and proportion of variant sites (biallelic and multiallelic)',
+                                          action = 'store_true')
+  
 
 def make_blast_db(ref_fna):
 
@@ -762,9 +797,18 @@ def generate_par_report(args):
         pass
     if args.trim_reads_end is not None and args.ancient_sample != 'None':
         rep_opt.write('Length of reads end trimmed: {}\n'.format(args.trim_reads_end))
+    else:
+        pass
     if args.trimmed_reads and args.ancient_sample != 'None':
-        rep_opt.write('Reads trimmed for damaged sites and used for reconstruction is output in fastq!\n')	
-
+        rep_opt.write('Reads trimmed for damaged sites and used for reconstruction is output in fastq!\n')
+    else:
+        pass
+    if args.missing_information_control != -1:
+        rep_opt.write('{} missing information from ancient samples is allowed in each column.\n'.format(args.missing_information_control))
+    else:
+        rep_opt.write('0.5 mission information from ancient samples is allowed in each column.\n')
+    rep_opt.write('Modern taxa covered less than {}(ratio) are removed from alignment.\n'.format(args.remove_gappy_taxa))	
+    rep_opt.write('Ancient taxa covered less than {}(percentage) at {} depth are removed from alignment.\n'.format(args.remove_ancient_samples, args.minimum_coverage))    
     rep_opt.write('Minimum alignemnt length in blastn [{}]\n'.format(args.alignment_length))
     rep_opt.write('Peak CPU used [{}]\n'.format(str(peak_cpu)))
     rep_opt.close()
@@ -815,6 +859,12 @@ def generate_par_report(args):
           rep_opt.write('Reads trimmed for damaged sites and used for reconstruction is output in fastq!\n')
       else:
           pass
+      if args.missing_information_control != -1:
+          rep_opt.write('{} missing information from ancient samples is allowed in each column.\n'.format(args.missing_information_control))
+      else:
+          rep_opt.write('0.5 mission information from ancient samples is allowed in each column.\n')
+      rep_opt.write('Modern taxa covered less than {}(ratio) are removed from alignment.\n'.format(args.remove_gappy_taxa))  
+      rep_opt.write('Ancient taxa covered less than {}(percentage) at {} depth are removed from alignment.\n'.format(args.remove_ancient_samples, args.minimum_coverage))    
       rep_opt.write('Peak CPU utilization: [{}]\n'.format(str(peak_cpu)))
       rep_opt.close()
 
@@ -863,18 +913,19 @@ def build_raxml(aln, raxml_t):
             sys.exit('Creating raxml tree output folder failed!')
         subprocess.call('cp {} {}/.'.format(aln, raxml_dir), shell = True)      
         opt_name = aln.split('.')[0]
-        cmd = 'raxmlHPC-PTHREADS -T {} -f a -# 100 -p 12345 -x 12345 -s {} -m GTRGAMMA -n {} -w {}'.format(raxml_t, aln, opt_name, raxml_dir)
+        cmd = 'raxmlHPC-PTHREADS-SSE3 -T {} -f a -# 100 -p 12345 -x 12345 -s {} -m GTRGAMMA -n {} -w {}'.format(raxml_t, aln, opt_name, raxml_dir)
         subprocess.call(cmd, shell = True)
     else:
          return 'No tree is built!'
 def main():
 
-    parser = argparse.ArgumentParser('contigs_based, reads_based', 'alignment_tailor')
+    parser = argparse.ArgumentParser('contigs_based, reads_based', 'alignment_tailor', 'alignment_assessing')
     subparsers = parser.add_subparsers(help = 'program mode', dest = 'mode')
 
     add_blast_approach_cmd_options(subparsers)
     add_mapping_approach_cmd_options(subparsers)
     add_alignment_tailor_cmd_options(subparsers)
+    add_alignment_assessing_cmd_option(subparsers)
 
     args = parser.parse_args()
 
@@ -1022,7 +1073,10 @@ def main():
         final_tuned_aln = tailor('Inter_2.fna', args.missing_information_control, args.remove_gappy_taxa)
         new_opt_name = args.genome_alignment_opt
         SeqIO.write(final_tuned_aln, new_opt_name, 'fasta')
-        subprocess.call('rm Inter*', shell = True)    
+        subprocess.call('rm Inter*', shell = True)
+
+    elif args.mode == 'alignment_assessing':
+        print('In the development')    
         
     else:
         sys.exit('Oops, choose either contigs_based, reads_based, or alignment_tailor. Please check help menu')

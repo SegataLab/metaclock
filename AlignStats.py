@@ -43,7 +43,19 @@ class AlignStats(object):
 			gap_ratio = record.seq.count('-')/len(record)
 			if gap_ratio <= gap:
 				filtered_taxa.append(record)
-		return filtered_taxa		
+		return filtered_taxa
+
+	def column_MissingValue_dist(self):
+		misinfo = []
+		for j in range(len(self.Align_opt[1])):
+			col = list(self.Align_opt[:,j])
+			misvalues = col.count('-')/len(col)
+			misinfo.append(misvalues)
+
+		return misinfo
+
+		
+
 			
 
 			
