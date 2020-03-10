@@ -13,7 +13,12 @@ from Bio.SeqRecord import SeqRecord
 from Bio.Alphabet import generic_dna
 from Bio.Seq import Seq
 from operator import itemgetter 
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 
+	
 
 def pattern_filtering(p,l):
 	"""
@@ -233,6 +238,17 @@ def ancient_sample_tailor(aln_dict, num_a = 1):
 
 
 
+def distribution(value_list):
+	sns.set(style = 'white', color_codes = True)
+	ax = sns.distplot(value_list, kde=False, bins = 100)
+	ax.set(xlabel = 'Missing information (%)', ylabel = 'Number of columns')
+	
+	return plt
+def Barplot(df):
+	sns.set(style = 'white', color_codes = True)
+	ax = sns.barplot(x = 'Cutoffs', y = 'N. columns', hue = 'Samples', data = df)
+
+	return plt
 
 
 

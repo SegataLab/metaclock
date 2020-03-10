@@ -29,8 +29,11 @@ from utils import unique
 from utils import find
 from utils import out_stats
 from utils import ancient_sample_tailor
+from utils import distribution
+from utils import Barplot
 from AlignStats import AlignStats
 from Bio import AlignIO
+from Bio.Align import MultipleSeqAlignment
 
 def add_blast_approach_cmd_options(subparsers):
     """
@@ -91,7 +94,7 @@ def add_blast_approach_cmd_options(subparsers):
                               Attention: * sign should close parameter so as to escape special character\
                               , for example, *-a*, *-k,5*.',
                               type = str,
-                              default = '(-k,3)')    
+                              default = '*-k,3*')    
     blast_parser.add_argument('-aln_len_blast',
                               '--alignment_length',
                               help = 'minimum alignment length of blast hits. default: [500nt]',
@@ -937,12 +940,13 @@ def main():
         blast_(args.ref_fna, 'INTER_QuerySet.fna', args.blast_threads)
         QC_on_blastn('INTER_blast_opt_tmp.tab', args.alignment_length, args.identity)
         bowtie2_build(args.ref_fna)
-        if args.ancient_sample != 'None': 
-        	create_mapping(args)
-        	parallel_filter(args)
-        	parallel_consensus(args)
+        if args.ancient_sample != 'None':
+            
+            create_mapping(args)
+            parallel_filter(args)
+            parallel_consensus(args)
         else:
-        	pass
+            pass
 
         ref_ctig_dict = SeqIO.to_dict(SeqIO.parse(open(args.ref_fna), "fasta"))
         genomes_contigs_dict = concatenate_contigs("INTER_blastn_opt_tmp_cleaned.tab", 'INTER_genome_contigs_mp.csv', args.ref_fna)
@@ -951,34 +955,34 @@ def main():
         ref_seq_record = [SeqRecord(Seq(reorder_contigs(ref_ctig_dict, ref_ctig_dict_), generic_dna),\
          id = args.ref_fna, description = '')]
         if args.ancient_sample != 'None':
-        	agenomes = subprocess.getoutput("ls *consensus.fna").split("\n")
-        	agenomes_dict = {'a__'+g.replace('_consensus.fna','').replace('filtered_INTER_', ''): {str(c).replace('_consensus', ''): str(SeqIO.to_dict(SeqIO.parse(open(g),\
+            agenomes = subprocess.getoutput("ls *consensus.fna").split("\n")
+            agenomes_dict = {'a__'+g.replace('_consensus.fna','').replace('filtered_INTER_', ''): {str(c).replace('_consensus', ''): str(SeqIO.to_dict(SeqIO.parse(open(g),\
         	 'fasta'))[c].seq).replace('N', '-')\
-        	 for c in SeqIO.to_dict(SeqIO.parse(open(g), 'fasta'))}\
-        	 for g in agenomes}
-        	agenomes_lst = [SeqRecord(Seq(reorder_contigs(ref_ctig_dict, agenomes_dict[ag]), generic_dna),\
-        	 id = ag, description = '')\
-        	 for ag in agenomes_dict]
+             for c in SeqIO.to_dict(SeqIO.parse(open(g), 'fasta'))}\
+             for g in agenomes}
+            agenomes_lst = [SeqRecord(Seq(reorder_contigs(ref_ctig_dict, agenomes_dict[ag]), generic_dna),\
+              id = ag, description = '')\
+            for ag in agenomes_dict]
         else:
-        	pass 
+            pass 
         rec_genomes_lst.extend(ref_seq_record)
         if args.ancient_sample != 'None':
-        	rec_genomes_lst.extend(agenomes_lst)
+            rec_genomes_lst.extend(agenomes_lst)
         else:
-        	pass
+            pass
 
         SeqIO.write(rec_genomes_lst, '{}-GenomeAln_ContigsBased.fna'.format(args.ref_fna.split('.')[0]), 'fasta') 
         if args.trim_reads_end != None and args.trimmed_reads != False and args.ancient_sample != 'None':
-        	filtered_bam = subprocess.getoutput('ls filtered_INTER*.bam.sorted').split('\n')
-        	for bam in filtered_bam:
-        		output_trimmed_reads(args.trim_reads_end, bam)
+            filtered_bam = subprocess.getoutput('ls filtered_INTER*.bam.sorted').split('\n')
+            for bam in filtered_bam:
+        		    output_trimmed_reads(args.trim_reads_end, bam)
         else:
-        	pass
+           pass
         dir_name = 'intermediates'
         if not os.path.exists(dir_name):
-        	os.mkdir(dir_name)
+            os.mkdir(dir_name)
         else:
-        	print("Folder {} already exists !".format(dir_name))
+            print("Folder {} already exists !".format(dir_name))
         subprocess.call('mv *INTER* ./{}'.format(dir_name), shell = True)
         subprocess.call('mv *bt2 ./{}'.format(dir_name), shell = True)
         subprocess.call('mv *nin ./{}'.format(dir_name), shell = True)
@@ -1076,7 +1080,34 @@ def main():
         subprocess.call('rm Inter*', shell = True)
 
     elif args.mode == 'alignment_assessing':
-        print('In the development')    
+        if args.output_directory == None:
+            if args.missinginfo_column_distribution:
+                misv_all = AlignStats(AlignIO.read(args.genome_alignment, 'fasta')).column_MissingValue_dist()
+                distribution(misv_all).savefig('Columndistribution_MissingValue_AllTaxa.png', dpi = 150)
+                misv_a_msa = MultipleSeqAlignment([i for i in AlignIO.read(args.genome_alignment, 'fasta') if i.id.startswith('a__')])
+                misv_m_msa = MultipleSeqAlignment([i for i in AlignIO.read(args.genome_alignment, 'fasta') if not i.id.startswith('a__')])
+                misv_a = AlignStats(misv_a_msa).column_MissingValue_dist()
+                misv_m = AlignStats(misv_m_msa).column_MissingValue_dist()
+                distribution(misv_a).savefig('Columndistribution_MissingValue_AncientTaxa.png', dpi = 150)
+                distribution(misv_m).savefig('Columndistribution_MissingValue_ModernTaxa.png', dpi = 150)
+                aln_obj = AlignStats(AlignIO.read(args.genome_alignment, 'fasta'))
+                Barplot(aln_obj.column_MissingValue_bar()).savefig('NumberColumn_cutoffs.png', dpi = 150)
+            else:
+                pass
+            if args.variant_sites:
+                aln_obj = AlignStats(AlignIO.read(args.genome_alignment, 'fasta'))
+                var_sites = aln_obj.variant_sites_ratio()
+                opt_var = open('Variant_sites_report.txt', 'w')
+                opt_var.write("Biallelic sites: {}\n".format(str(var_sites[2])))
+                opt_var.write("Biallelic sites ratio: {}\n".format(str(var_sites[0])))
+                opt_var.write("Multiallelic sites: {}\n".format(str(var_sites[3])))
+                opt_var.write("Multiallelic sites ratio: {}\n".format(var_sites[1]))
+                opt_var.close()
+            else:
+                pass
+
+        else:
+            print("The feature of re-directing opts to a specified directory is still in the development !")    
         
     else:
         sys.exit('Oops, choose either contigs_based, reads_based, or alignment_tailor. Please check help menu')
