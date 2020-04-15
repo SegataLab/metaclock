@@ -352,17 +352,27 @@ def add_alignment_assessing_cmd_option(subparsers):
                                           action = 'store_true')
   alignment_assessing_parser.add_argument('-misinfo_col_dist',
                                           '--missinginfo_column_distribution',
-                                          help = 'Plot the distribution of columns with missing information',
+                                          help = 'Plot the distribution of columns with missing information.',
                                           action = 'store_true')
   alignment_assessing_parser.add_argument('-vs',
                                           '--variant_sites',
-                                          help = 'Report the absolute number and proportion of variant sites (biallelic and multiallelic)',
+                                          help = 'Report the absolute number and proportion of variant sites (biallelic and multiallelic).',
                                           action = 'store_true')
+  alignment_assessing_parser.add_argument('-vs_ws',
+                                          '--variant_sites_window_sliding',
+                                          help = 'Specify the window size to slice whole alignment to calculate variant sites (biallelic and multiallelic).',
+                                          type = int,
+                                          default = 0)
+  alignment_assessing_parser.add_argument('-opt_hvf',
+                                          '--output_hyperviriable_regione_free_file',
+                                          help = 'specify the threshold to remove hypervariable regions.',
+                                          type = int,
+                                          default = 0)
+
   
+def make_blast_db(ref_fna, opt_dir = os.getcwd()):
 
-def make_blast_db(ref_fna):
-
-	cmd = 'makeblastdb -in {} -dbtype nucl'.format(ref_fna)
+	cmd = 'makeblastdb -in {} -dbtype nucl -out {}'.format(opt_dir + '/' + ref_fna, opt_dir + '/' + ref_fna)
 	subprocess.call(cmd, shell = True)
 
 def generate_query_set_and_mf_file(contigs_folder):
@@ -379,17 +389,17 @@ def generate_query_set_and_mf_file(contigs_folder):
 	opt_file.close()
 
 
-def blast_(ref_fna, query, b_t):
+def blast_(ref_fna, query, b_t, opt_dir = os.getcwd()):
 
     outfmt = '6 qaccver saccver pident length mismatch gapopen qstart qend\
  sstart send evalue bitscore qseq sseq'
     cmd = "blastn -db {} -query {} -outfmt '{}' -num_threads {}\
- -word_size 9 -out INTER_blast_opt_tmp.tab".format(ref_fna, query, outfmt, b_t)
+ -word_size 9 -out {}/INTER_blast_opt_tmp.tab".format(opt_dir+'/'+ref_fna, opt_dir+'/'+query, outfmt, b_t, opt_dir)
     subprocess.call(cmd, shell = True)
 
-def QC_on_blastn(blast_tab, length, pid):
+def QC_on_blastn(blast_tab, length, pid, opt_dir = os.getcwd()):
 
-    cmd = 'cut -f 1-14 {} | bo6_screen.py --length {} --pid {} > INTER_blastn_opt_tmp_cleaned.tab'.format(blast_tab, length, pid)
+    cmd = 'cut -f 1-14 {} | bo6_screen.py --length {} --pid {} > {}/INTER_blastn_opt_tmp_cleaned.tab'.format(blast_tab, length, pid, opt_dir)
     subprocess.call(cmd, shell = True)
 
 def bowtie2_build(ref_fna):
@@ -862,12 +872,15 @@ def generate_par_report(args):
           rep_opt.write('Reads trimmed for damaged sites and used for reconstruction is output in fastq!\n')
       else:
           pass
-      if args.missing_information_control != -1:
+      if args.missing_information_control != -1 and args.ancient_sample != 'None':
           rep_opt.write('{} missing information from ancient samples is allowed in each column.\n'.format(args.missing_information_control))
       else:
           rep_opt.write('0.5 mission information from ancient samples is allowed in each column.\n')
+      if args.ancient_sample != 'None':
+          rep_opt.write('Ancient taxa covered less than {}(percentage) at {} depth are removed from alignment.\n'.format(args.remove_ancient_samples, args.minimum_coverage))    
+      else:
+          pass
       rep_opt.write('Modern taxa covered less than {}(ratio) are removed from alignment.\n'.format(args.remove_gappy_taxa))  
-      rep_opt.write('Ancient taxa covered less than {}(percentage) at {} depth are removed from alignment.\n'.format(args.remove_ancient_samples, args.minimum_coverage))    
       rep_opt.write('Peak CPU utilization: [{}]\n'.format(str(peak_cpu)))
       rep_opt.close()
 
@@ -922,7 +935,7 @@ def build_raxml(aln, raxml_t):
          return 'No tree is built!'
 def main():
 
-    parser = argparse.ArgumentParser('contigs_based, reads_based', 'alignment_tailor', 'alignment_assessing')
+    parser = argparse.ArgumentParser('contigs_based', 'reads_based', 'alignment_tailor', 'alignment_assessing')
     subparsers = parser.add_subparsers(help = 'program mode', dest = 'mode')
 
     add_blast_approach_cmd_options(subparsers)
@@ -1105,6 +1118,30 @@ def main():
                 opt_var.close()
             else:
                 pass
+            if args.variant_sites_window_sliding != 0:
+                window_size = args.variant_sites_window_sliding
+                aln_ipt = AlignIO.read(args.genome_alignment, 'fasta')
+                aln_ipt_len = len(aln_ipt[1, :]) 
+                opt_var = open('window_sliced_variant_sites_report.txt', 'w')
+                init_aln = aln_ipt[:,:1]
+                for i in range(0, aln_ipt_len, window_size):
+                    sliced_aln = aln_ipt[:, i:i+window_size]
+                    sliced_aln_obj = AlignStats(sliced_aln).variant_sites_ratio()
+                    opt_var.write(str(sliced_aln_obj[2])+'\t'+ str(sliced_aln_obj[3]) + '\n')
+                    if sliced_aln_obj[2] == 0 or sliced_aln_obj[3] == 0:
+                        init_aln += sliced_aln
+                opt_var.close()
+                SeqIO.write(init_aln[:, 2:], 'hyper_free_aln_0.fna', 'fasta')
+                ########
+                # Add an argument to threshold 
+                ########
+
+
+
+            else:
+                pass
+
+
 
         else:
             print("The feature of re-directing opts to a specified directory is still in the development !")    
