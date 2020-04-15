@@ -2,7 +2,9 @@
 	
 import subprocess
 import argparse
+import os
 import sys
+import shutil
 from collections import defaultdict
 from collections import Counter
 from Bio import SeqIO
@@ -52,12 +54,12 @@ def read_args(args):
 						type = str)
 	parser.add_argument('-l',
 		                '--length',
-		                help = 'minimum length of homologous sequence alignment to keep as a hit.',
+		                help = 'minimum length of homologous sequence alignment to keep as a hit. default: [500]',
 		                type = str,
 		                default = '500')
 	parser.add_argument('-i',
 						'--identity',
-						help = 'minium identity of homologous sequences to keep as a hit.',
+						help = 'minium identity of homologous sequences to keep as a hit. default: [95.0]',
 						 type = str,
 						 default = '95.0')
 	parser.add_argument('-p',
@@ -67,15 +69,20 @@ def read_args(args):
 						type = int)
 	parser.add_argument('-hf',
 						'--homo_site_in_refs',
-						help = 'The number of references in which homologous sites can be found. defaul:[2]',
+						help = 'The number of references in which homologous sites can be found. default: [2]',
 						default = 2.0,
 						type = int)
+	parser.add_argument('-d',
+						'--output_folder',
+						help = 'Specify a name for output folder. default: [outputs]',
+						default = 'outputs',
+						type = str)
 
 	return vars(parser.parse_args())
 
 
 
-def refs_collector(alns_folder):
+def refs_collector(alns_folder, opt_dir):
 	
 	"""
 	It takes a folder which contains single alignments and writes all reference
@@ -91,7 +98,7 @@ def refs_collector(alns_folder):
 		rec_lst.append(SeqRecord(Seq(str(aln_dict[RefSeq_name].seq),\
 		 generic_dna), id = RefSeq_name, description = ''))
 		ref_header_lst.append(RefSeq_name)
-	SeqIO.write(rec_lst, 'Refs.fna', 'fasta')
+	SeqIO.write(rec_lst, opt_dir+'/Refs.fna', 'fasta')
 	return ref_header_lst
 
 
@@ -376,26 +383,32 @@ if __name__== '__main__':
 
 
 	pars = read_args(sys.argv)
-	proc_log = open('processing_log.txt', 'w')
+	opt_dir = os.getcwd() + '/{}'.format(pars['output_folder'])
+	if os.path.exists(opt_dir):
+		shutil.rmtree(opt_dir)
+	os.makedirs(opt_dir)
+	processing_log = opt_dir + '/processing_log.txt'
+	proc_log = open(processing_log, 'w')
 
 	single_aln_lst = [a for a in subprocess.getoutput('ls {}/*'.format(pars['alns_folder'])).split('\n')]
 	aln_dict = {}	
 	for aln in single_aln_lst:
 		aln_dict[aln.split('/')[1]] = reorder_aln(AlignIO.read(aln, 'fasta'))	
 
-	refs_name_headers = refs_collector(pars['alns_folder']) # refenrece genome names in a list
+	refs_name_headers = refs_collector(pars['alns_folder'], opt_dir) # refenrece genome names in a list
 	ref_sub_groups = [i[0]+'@'+i[1] for i in itertools.combinations(refs_name_headers, 2)]
 	proc_log.write("Write aligment RefSeq in each aligment into one fasta file ---> Refs.fna\n")
-	make_blast_db('Refs.fna') # make blast database
+
+	make_blast_db('Refs.fna', opt_dir = opt_dir) # make blast database
 	proc_log.write("Prepare blast database ---> [Refs.fna.nhr, Refs.fna.nin, Refs.fna.nsq]\n")
-	blast_('Refs.fna', 'Refs.fna', 4) # call blast
+	blast_('Refs.fna', 'Refs.fna', 4, opt_dir = opt_dir) # call blast
 	proc_log.write("Generate blast output ---> INTER_blast_opt_tmp.tab\n")
-	QC_on_blastn('INTER_blast_opt_tmp.tab', pars['length'], pid = pars['identity']) # QC on blast result
+	QC_on_blastn(opt_dir + '/INTER_blast_opt_tmp.tab', pars['length'], pid = pars['identity'], opt_dir = opt_dir) # QC on blast result
 	proc_log.write("Generate filtered blast output with length {} and identity {} ----> INTER_blastn_opt_tmp_cleaned.tab\n".\
 		format(pars['length'], pars['identity']))
 	aln_paths = [a for a in subprocess.getoutput('ls {}/*'.format(pars['alns_folder'])).split('\n')]
 
-	matrice = {pair: partition_genomes('INTER_blastn_opt_tmp_cleaned.tab')[pair] for pair in ref_sub_groups}
+	matrice = {pair: partition_genomes(opt_dir + '/INTER_blastn_opt_tmp_cleaned.tab')[pair] for pair in ref_sub_groups}
 
 	proc_log.write("-----------------------------------------\nToatl length homologous fragments\n\
 	# Genome pairs\t Length\n")
@@ -418,7 +431,7 @@ if __name__== '__main__':
 	cols_merged = col_tool_obj.merge_col_voting(pars['homo_site_in_refs'])
 	merged = aln_builder(AlignIO.read('{}/{}'.format(pars['alns_folder'], refs_name_headers[0]), 'fasta'),\
 	 cols_merged)
-	opt_merged_col_name = 'merged_aln_{}_refs.fna'.format(str(pars['homo_site_in_refs']))
+	opt_merged_col_name = opt_dir + '/merged_aln_{}_refs.fna'.format(str(pars['homo_site_in_refs']))
 	SeqIO.write(merged, opt_merged_col_name, 'fasta')
 
 # 1. Add a feature of calculating mutation/site
