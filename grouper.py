@@ -17,8 +17,8 @@ counter = 0
 for i in group:
 	counter += 1
 	cwd = os.getcwd()
-	os.mkdir(cwd+ '/aln_'+number_of_members+"_case_"+str(counter))
-	folder_name = cwd+ '/aln_'+number_of_members+"_case_"+str(counter)+'/all_alns'
+	# os.mkdir(cwd+ '/aln_'+number_of_members+"_case_"+str(counter))
+	folder_name = cwd+ '/aln_'+number_of_members+"_case_"+str(counter)
 	os.mkdir(folder_name)
 	for a in i:
 		subprocess.call("ln -s {} {}/.".format(a, folder_name), shell = True)

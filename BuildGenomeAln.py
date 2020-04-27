@@ -18,6 +18,7 @@ import argparse
 import os
 import itertools
 import pysam
+import shutil
 from collections import defaultdict
 from functools import partial
 from Bio import SeqIO
@@ -921,18 +922,20 @@ def variant_sites(aln):
     return aln_obj.variant_sites_ratio()    
 
 def build_raxml(aln, raxml_t):
-    if raxml_t:
-        try:
-            raxml_dir = os.getcwd()+'/raxml_tree'
-            os.mkdir(raxml_dir)
-        except:
-            sys.exit('Creating raxml tree output folder failed!')
+    if raxml_t != 0:
+        raxml_dir = os.getcwd()+'/raxml_tree'
+        if os.path.exists(raxml_dir):
+            shutil.rmtree(raxml_dir)
+        os.makedirs(raxml_dir)
+
         subprocess.call('cp {} {}/.'.format(aln, raxml_dir), shell = True)      
-        opt_name = aln.split('.')[0]
+        opt_name = aln.replace('.fna', '')
         cmd = 'raxmlHPC-PTHREADS-SSE3 -T {} -f a -# 100 -p 12345 -x 12345 -s {} -m GTRGAMMA -n {} -w {}'.format(raxml_t, aln, opt_name, raxml_dir)
+        # sys.stdout.write(cmd)
         subprocess.call(cmd, shell = True)
     else:
          return 'No tree is built!'
+
 def main():
 
     parser = argparse.ArgumentParser('contigs_based', 'reads_based', 'alignment_tailor', 'alignment_assessing')

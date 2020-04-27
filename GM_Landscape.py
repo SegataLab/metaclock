@@ -26,9 +26,14 @@ from Bio.Align import MultipleSeqAlignment
 from Bio.Alphabet import IUPAC, Gapped
 from Bio import AlignIO
 from Bio.Phylo.TreeConstruction import DistanceCalculator
+from Bio.Phylo.TreeConstruction import _Matrix
 from Bio import SeqIO
 import pandas as pd
 from utils import multi_proc_dict
+import numpy as np
+import matplotlib.pyplot as plt
+from visual_utils import hist_plot
+from BuildGenomeAln import build_raxml
 
 
 def add_assessing_cmd_options(subparsers):
@@ -64,8 +69,14 @@ def add_assessing_cmd_options(subparsers):
                                '--minimum_missing_information',
                                help = 'Specify the minimum missing information of each sample in each child alignment\
                                 to count the number of samples. Default: [0.05]',
-                               type = int,
+                               type = float,
                                default = 0.05)
+    assess_parser.add_argument('-tf',
+                            '--time_file',
+                            help = 'Input the tip times file. 1st column is name and 2nd column is time, delimited by tab.',
+                            type = str,
+                            default = None)
+
     assess_parser.add_argument('-nproc',
                            '--number_of_processors',
                            help = 'Specify the number of processor to be used. default: [1]',
@@ -134,7 +145,16 @@ def add_select_cmd_options(subparsers):
                                help = 'Specify the maximum Stdv of average pairwise distance. default: [0]',
                                type = float,
                                default = 1.0)
-
+    select_parser.add_argument('-min_cor',
+                               '--minimum_corrlation',
+                               help = 'Specify the minimum correlation. default: [0]',
+                               type = float,
+                               default = 0.0)
+    select_parser.add_argument('-tm_avg_dist',
+                               '--time_measured_avg_distance',
+                               help = 'Specify the max time-measured avg genetic distance. default: [1.0]',
+                               type= float,
+                               default= 1.0)
     select_parser.add_argument('-f',
                                  '--feature',
                                  help = 'Specify the types to output [CDS, rRNA, tRNA, non_CDS].\
@@ -151,8 +171,30 @@ def add_select_cmd_options(subparsers):
 
     select_parser.add_argument('-c',
                                '--concatenate',
-                               help = 'If this option is chosen selected individual alignments will be concatenated\
-                               into one whole genome alignment concatenation.',
+                               help = 'Specify an output file name where to store concatenated selected\
+                               individual alignments.',
+                               type = str,
+                               default = None)
+
+    select_parser.add_argument('-raxml_t',
+                               '--raxml_threads',
+                               help = 'Specify the thread number to run raxml tree if ML-tree is expected.',
+                               type = str,
+                               default = 0)
+
+def add_visual_cmd_options(subparsers):
+	# Add command options for visualizing stats
+    visual_parser = subparsers.add_parser('Visual',
+	                                       help = 'Visualizing assessment',
+	                                       description = 'This featue visualizes assessment.')
+    visual_parser.add_argument('at',
+	                            nargs = '?',
+	                            metavar = 'assessment_table',
+	                            help = 'Input the assessment table generated in preceding steps.',
+                                type = str)
+    visual_parser.add_argument('-a',
+                               '--all',
+                               help = 'Automatic visualization of all assessed aspects.',
                                action = 'store_true')
 
 
@@ -238,6 +280,7 @@ class ChildAlnStats(object):
             return snv(SNV_no = all_count, SNV_density = snv_density)
         else:
             return snv(SNV_no = 'NA', SNV_density = 'NA')
+
     def avg_pw_dist(self):
         dist_value = collections.namedtuple('dist_value', 'Avg Stdv')
         if self.variable_sites().SNV_no != 'NA':
@@ -250,6 +293,40 @@ class ChildAlnStats(object):
             return dist_value(Avg = avg, Stdv = stdv)
         else:
             return dist_value(Avg = 'NA', Stdv = 'NA')
+
+    def tm_pw_dist(self, time_differences):
+        dist_value = collections.namedtuple('dist_value', 'coefficint b_mu_rate')
+        if self.variable_sites().SNV_no != 'NA':
+        	calculator = DistanceCalculator('identity')
+        	dm = calculator.get_distance(self.child_aln_obj)
+
+        	genetic_diff = []
+        	time_diff = []
+
+        	for t in time_differences:
+        		pair_1, pair_2 = t[0][0], t[0][1]
+        		t_difference = t[1]
+        		g_difference = dm[pair_1, pair_2]
+
+        		genetic_diff.append(g_difference)
+        		time_diff.append(t_difference)
+        	df_ = pd.DataFrame.from_dict({'g': genetic_diff, 't': time_diff})
+        	col_g = df_['g']
+        	col_t = df_['t']
+        	col_eff = col_t.corr(col_g)
+        	
+        	df_['mu_rate'] = df_['g']/df_['t']
+
+        	# tm_dist_avg = df_['mu_rate'].mean()
+        	tm_dist_avg = df_['g'].sum()/df_['t'].sum()
+
+        	return dist_value(coefficint = col_eff, b_mu_rate = tm_dist_avg)
+        else:
+
+        	return dist_value(coefficint = 'NA', b_mu_rate = 'NA')
+
+
+
     def missing_value(self):
         if self.aln_len() >= 10:
             init = ''
@@ -267,7 +344,7 @@ class ChildAlnStats(object):
             counter = 0
             for i in self.child_aln_obj:
                 s_mv = i.seq.count('-')/len(i.seq)
-                if s_mv <= 0.05:
+                if s_mv <= mv:
                     counter += 1
             return str(counter)
         else:
@@ -283,6 +360,13 @@ def multi_dist(packed_args):
 	cAln_obj = ChildAlnStats(aln)	
 	apw_dist = cAln_obj.avg_pw_dist()
 	return (label, (apw_dist.Avg, apw_dist.Stdv))
+
+def multi_tm_dist(packed_args):
+	label, aln, td_lst = packed_args
+	cAln_obj = ChildAlnStats(aln)
+	tm_dist = cAln_obj.tm_pw_dist(td_lst)
+
+	return (label, (tm_dist.coefficint, tm_dist.b_mu_rate))
 
 def multi_variable_sites(packed_args):
     label, aln = packed_args
@@ -310,7 +394,7 @@ def aln_filter(a_tab, par_tuple):
 	# So here adds a parameter control to make sure inputs are within bounds
 
 
-	Length, SNV, SNV_density, missing_value, mini_sample, avg_dist, stdv_dist = par_tuple
+	Length, SNV, SNV_density, missing_value, mini_sample, avg_dist, stdv_dist, cor, tm_dist = par_tuple
 
 	len_range = (min(list(a_tab['Length'])), max(list(a_tab['Length'])))
 	SNV_range = (min(list(a_tab['#SNV'])), max(list(a_tab['#SNV'])))
@@ -350,6 +434,8 @@ def aln_filter(a_tab, par_tuple):
 	    a_tab = a_tab.loc[a_tab['#Samples(missing information < 5%)'] >= mini_sample]
 	    a_tab = a_tab.loc[a_tab['Avg_genetic_distance'] <= avg_dist]
 	    a_tab = a_tab.loc[a_tab['Stdv_genetic_distance'] <= stdv_dist]
+	    a_tab = a_tab.loc[a_tab['correlation'] >= cor]
+	    a_tab = a_tab.loc[a_tab['avg_time_measured_dist'] <= tm_dist]
 
 	    return a_tab  
 
@@ -359,10 +445,12 @@ def aln_filter(a_tab, par_tuple):
 
 def main():
 
-    parser = argparse.ArgumentParser('Assessment', 'Select')
+    parser = argparse.ArgumentParser('Assessment', 'Select', 'Visual')
     subparsers = parser.add_subparsers(help = 'program mode', dest = 'mode')
     add_assessing_cmd_options(subparsers)
     add_select_cmd_options(subparsers)
+    add_visual_cmd_options(subparsers)
+
     args = parser.parse_args()
 
 
@@ -376,8 +464,15 @@ def main():
         opt_file_name = open(opt_dir + '/Assessment.txt', 'w')
         opt_file_name.write('Child_alignment\t' + 'Function\t' + 'Length\t' + '#SNV\t' + 'SNV_density\t'\
         	+ 'Missing_value\t' + '#Samples(missing information < 5%)\t'+'Avg_genetic_distance\t'\
-        	+ 'Stdv_genetic_distance\n')
+        	+ 'Stdv_genetic_distance' + '\t' + 'correlation'+'\t'+'avg_time_measured_dist'+'\n')
         
+        ipt_mp_dict = {i.rstrip().split('\t')[0]: float(i.rstrip().split('\t')[1])\
+        for i in open(args.time_file).readlines()}
+        combined = itertools.combinations(ipt_mp_dict.keys(), 2)
+        time_diff_lst = [(i, abs(ipt_mp_dict[i[0]] - ipt_mp_dict[i[1]])+1) \
+        for i in combined]
+
+
         def Assessment_tab(gff3):
 
             gContent_db = parse_gff(wga_aln, gff3)
@@ -393,6 +488,11 @@ def main():
 
             avg_pwd_dict = multi_proc_dict(args.number_of_processors, multi_dist, label_aln_pairs)
                 # {'label': (mean, stdv)}
+            	
+            label_aln_td_lst = [(i, gContent_db[i].Child_aln, time_diff_lst) for i in gContent_db]
+            avg_tm_pwd_dict = multi_proc_dict(args.number_of_processors, multi_tm_dist, label_aln_td_lst)
+
+
 
 
 
@@ -404,7 +504,8 @@ def main():
                     dict_lst_BigMatrix[label].append([label, gContent_db[label].Function, len_dict[label],\
                      dict_judge(label, vs_dict)[0], dict_judge(label, vs_dict)[1], \
                         dict_judge(label, mv_dict), dict_judge(label, no_samples_min_mv_dict),\
-                        dict_judge(label, avg_pwd_dict)[0], dict_judge(label, avg_pwd_dict)[1]])
+                        dict_judge(label, avg_pwd_dict)[0], dict_judge(label, avg_pwd_dict)[1],\
+                        dict_judge(label, avg_tm_pwd_dict)[0], dict_judge(label, avg_tm_pwd_dict)[1]])
             
             return dict_lst_BigMatrix
 
@@ -431,11 +532,14 @@ def main():
             opt_file_name.write(write_in_lines + '\n')
         opt_file_name.close()
 
+       
+
     elif args.mode == 'Select':
+        wga_aln = AlignIO.read(args.wga, 'fasta')
         tab_df = pd.read_csv(args.a, sep = '\t')
         pars = (args.length, args.variable_sites, args.variable_sites_density,\
         	args.missing_value, args.minimum_no_sample_controled_mv, args.average_pairwise_distance,\
-        	args.average_pairwise_distance_stdv)
+        	args.average_pairwise_distance_stdv, args.minimum_corrlation, args.time_measured_avg_distance)
         selected_alns = aln_filter(tab_df, pars)
 
         if args.output_file:
@@ -454,7 +558,57 @@ def main():
         			+ selected_row['Missing_value'].astype(str)+'\t'\
         			+ selected_row['#Samples(missing information < 5%)'].astype(str)+'\t'\
         			+ selected_row["Avg_genetic_distance"].astype(str)+'\t'\
-        			+ selected_row["Stdv_genetic_distance"].astype(str)+ '\n')
+        			+ selected_row["Stdv_genetic_distance"].astype(str)+'\t'\
+        			+ selected_row["correlation"].astype(str)+'\t'\
+        			+ selected_row["avg_time_measured_dist"].astype(str) +'\n')
+
+        if args.individual_alignments:
+        	opt_dir = os.getcwd() + '/individual_alignments'
+        	if os.path.exists(opt_dir):
+        	    shutil.rmtree(opt_dir)
+        	os.makedirs(opt_dir)
+        	for i in selected_alns.index:
+        		aln_header = selected_alns.loc[i,:]["Child_alignment"]
+        		slicing_index = (int(aln_header.split('_')[1]), int(aln_header.split('_')[2]))
+        		sub_aln = wga_aln[:,slicing_index[0]: slicing_index[1]]
+        		SeqIO.write(sub_aln, opt_dir+'/'+aln_header+'.fna', 'fasta')   	
+        else:
+        	pass
+
+        if args.concatenate:
+        	opt_file = os.getcwd()+'/{}'.format(args.concatenate)
+        	init_aln = wga_aln[:, 0:1]
+        	for i in selected_alns.index:
+        		aln_header = selected_alns.loc[i,:]["Child_alignment"]
+        		slicing_index = (int(aln_header.split('_')[1]), int(aln_header.split('_')[2]))
+        		sub_aln = wga_aln[:,slicing_index[0]: slicing_index[1]]
+        		init_aln += sub_aln
+        	init_aln = init_aln[:, 1:]
+        	SeqIO.write(init_aln, opt_file, 'fasta')
+        	build_raxml(args.concatenate, args.raxml_threads)
+
+        else:
+        	pass
+
+    elif args.mode == 'Visual':
+        if args.all:
+        	df_ = pd.read_csv(args.at, sep = '\t')
+        	v1 = df_[df_['avg_time_measured_dist'] > 0]['avg_time_measured_dist']
+
+        	v2 = df_['correlation'].dropna()
+        	fig, (ax1, ax2) = plt.subplots(2,1)
+        	hist_plot(ax1, v1, {'bins': 200})
+        	ax1.text(0.003, 30, 'Max: {} mutation/site/year\
+        		\nMin: {} mutation/site/year'.format(str(v1.max()), str(v1.min())))
+        	hist_plot(ax2, v2, {'bins': 50})
+        	fig.savefig('test.png')
+
+
+
+        else:
+            pass
+
+
 
 
     else:

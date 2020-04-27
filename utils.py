@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from __future__ import division
 import re 
-from multiprocessing import Pool
+import multiprocessing as mp
 import numpy as np
 import bz2
 import sys
@@ -36,8 +36,16 @@ def multi_map(w,f,l):
 	multiprocessor is a function taking an integer(number of processor), a defined function,
 	and a list of works as arguments. 
 	"""
-	pool = Pool(processes = w)
+	# This is to multiprocess command line on shell
+	pool = mp.Pool(processes = w)
 	return pool.map(f,l)
+
+def multi_proc_dict(w, f, dict_lst):
+	
+	pool = mp.Pool(processes = w)
+	results = pool.map(f, dict_lst)
+
+	return {i[0]: i[1] for i in results}
 
 
 
