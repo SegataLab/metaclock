@@ -34,6 +34,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from visual_utils import hist_plot
 from BuildGenomeAln import build_raxml
+from ete3 import Tree
+
 
 
 def add_assessing_cmd_options(subparsers):
@@ -178,9 +180,16 @@ def add_select_cmd_options(subparsers):
 
     select_parser.add_argument('-raxml_t',
                                '--raxml_threads',
-                               help = 'Specify the thread number to run raxml tree if ML-tree is expected.',
+                               help = 'Specify the thread number to run raxml tree for concatenated alignment \
+                               if ML-tree is expected.',
                                type = str,
                                default = 0)
+    select_parser.add_argument('-fast_TempEst',
+                               '--fast_temporal_signal_est',
+                               help = 'Inputting a mapping file will allow a fast estimation for temporal signal.\
+                               Note: this option has to be selected together with -raxml_t.',
+                               type = str,
+                               default = None)
 
 def add_visual_cmd_options(subparsers):
 	# Add command options for visualizing stats
@@ -586,11 +595,19 @@ def main():
         	init_aln = init_aln[:, 1:]
         	SeqIO.write(init_aln, opt_file, 'fasta')
         	build_raxml(args.concatenate, args.raxml_threads)
+        	if args.raxml_threads != 0 and args.fast_temporal_signal_est:
+        		tre = subprocess.getoutput('ls raxml_tree/RAxML_bipartitions.*')
+        		opt_png = args.concatenate.replace('.fna', '') + '_TempEst.png'
+        		cmd = 'PreClock_LRM.py {} {} {}'.format(tre, args.fast_temporal_signal_est, opt_png)
+        		subprocess.call(cmd, shell = True)
+
+        		
 
         else:
         	pass
 
     elif args.mode == 'Visual':
+        print('In the development ......')
         if args.all:
         	df_ = pd.read_csv(args.at, sep = '\t')
         	v1 = df_[df_['avg_time_measured_dist'] > 0]['avg_time_measured_dist']
