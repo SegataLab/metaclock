@@ -126,29 +126,14 @@ def add_blast_approach_cmd_options(subparsers):
     						              '--trimmed_reads',
     						              help = 'generate a file contains reads with possible degenerated sites being trimmed',
     						              action = 'store_true')
-    blast_parser.add_argument('-mic',
-                              '--missing_information_control',
-                              help = 'The proportion of missing information in ancient columns to be allowed to keep a column. Default [0.3]\
-                              For example, -mic 0.3 means that columns of ancient samples should contain < 0.3 missing information to be kept.',
-                              type = float,
-                              default = -1)
-    blast_parser.add_argument('-rgt',
-                              '--remove_gappy_taxa',
-                              help = 'Remove gappy taxa (only modern ones) based on gap ratio. Default [0.1].',
-                              type = float,
-                              default = 0.1)
+
     blast_parser.add_argument('-raxml_t',
                               '--raxml_threads',
                               help = 'Number of threads to use in building raxml tree. (raxml tree will be built\
                               if specified.)',
                               type = str,
                               default = 0)
-    blast_parser.add_argument('-ras',
-                              '--remove_ancient_samples',
-                              help = 'Remove ancient samples which poorly cover the reference genome. default [10].\
-                              (Ancient samples which cover less than 10 percent of reference genome with the chosen deepth are removed)',
-                              type = int,
-                              default = 10)
+
 
 def add_mapping_approach_cmd_options(subparsers):
 
@@ -266,109 +251,55 @@ def add_mapping_approach_cmd_options(subparsers):
                               '--trimmed_reads',
                               help = 'generate a file contains reads with possible degenerated sites being trimmed',
                               action = 'store_true')
-  mapping_parser.add_argument('-mic',
-                            '--missing_information_control',
-                            help = 'The proportion of missing information in ancient columns to be allowed to keep the column. Default [0.3]\
-                            For example, -mic 0.3 means that columns of ancient samples should have < 0.3 missing information to be kept.',
-                            type = float,
-                            default = -1)
-  mapping_parser.add_argument('-rgt',
-                              '--remove_gappy_taxa',
-                              help = 'Remove gappy modern taxa based on gap ratio. Default [0.1].',
-                              type = float,
-                              default = 0.1)
+
   mapping_parser.add_argument('-raxml_t',
                               '--raxml_threads',
                               help = 'Number of threads to use in building raxml tree. (raxml tree will be built\
                               if specified)',
                               type = str,
                               default = 0)  
-  mapping_parser.add_argument('-ras',
-                              '--remove_ancient_samples',
-                              help = 'Remove ancient samples which poorly cover the reference genome. default [10].\
-                              (Ancient samples which cover less than 10 percent of reference genome with the chosen deepth are removed)',
-                              type = int,
-                              default = 10)
 
-def add_alignment_tailor_cmd_options(subparsers):
-  """
-  Add command options for alignment tailor
-  """
-  alignment_tailor_parser = subparsers.add_parser('alignment_tailor',
-                                                  help = 'Post-process by tailoring whole genome alignment!',
-                                                  description='Post-process by tailoring whole genome alignment!\
-                                                  caution: input file is suggested to start from file prefixed with\
-                                                  TrimalGappyout')
-  alignment_tailor_parser.add_argument('genome_alignment',
-                                        nargs = '?',
-                                        help = 'Input the genome alignment to tailor for an improved phylogeny.',
-                                        metavar = 'GenomeAlignment',
-                                        type = str)
-  alignment_tailor_parser.add_argument('genome_alignment_opt',
-                                        nargs = '?',
-                                        help = 'Output the genome alignment being tailored for an improved phylogeny.',
-                                        metavar = 'GenomeAlignmentOutput',
-                                        type = str)
-  alignment_tailor_parser.add_argument('-ras',
-                                       '--remove_ancient_samples',
-                                        help = 'Remove ancient samples which poorly cover the reference genome. default [10].\
-                                              (Ancient samples which cover less than 10 percent of reference genome with the\
-                                               chosen deepth are removed)',
-                                        type = int,
-                                        default = 10)
-  alignment_tailor_parser.add_argument('-mic',
-                                       '--missing_information_control',
-                                       help = 'The proportion of missing information in ancient columns to be allowed to keep the column. Default [0.3]\
-                                       For example, -mic 0.3 means that columns of ancient samples should have < 0.3 missing information to be kept.',
-                                       type = float,
-                                       default = -1)
-  
-  alignment_tailor_parser.add_argument('-rgt',
-                                       '--remove_gappy_taxa',
-                                       help = 'Remove gappy modern taxa based on gap ratio. Default [0.1].',
-                                       type = float,
-                                       default = 0.1)
 
-def add_alignment_assessing_cmd_option(subparsers):
-  """
-  Add command options for alignment assessing. 
-  """
+# def add_alignment_assessing_cmd_option(subparsers):
+#   """
+#   Add command options for alignment assessing. 
+#   """
 
-  alignment_assessing_parser = subparsers.add_parser('alignment_assessing',
-                                          help = 'Assessment of whole genome alignment.',
-                                          description = 'Features of assessing alignment composition.')
-  alignment_assessing_parser.add_argument('-opt_dir',
-                                          '--output_directory',
-                                          help = 'Specify the output directory. Current working directory as default.',
-                                          type = str,
-                                          default = None)
-  alignment_assessing_parser.add_argument('genome_alignment',
-                                          nargs = '?',
-                                          help = 'Input the genome alignment in fasta file.',
-                                          metavar = 'GenomeAlignment',
-                                          type = str)
-  alignment_assessing_parser.add_argument('-cov',
-                                          '--coverage',
-                                          help = 'Assessing coverage of RefSeq in each sample.',
-                                          action = 'store_true')
-  alignment_assessing_parser.add_argument('-misinfo_col_dist',
-                                          '--missinginfo_column_distribution',
-                                          help = 'Plot the distribution of columns with missing information.',
-                                          action = 'store_true')
-  alignment_assessing_parser.add_argument('-vs',
-                                          '--variant_sites',
-                                          help = 'Report the absolute number and proportion of variant sites (biallelic and multiallelic).',
-                                          action = 'store_true')
-  alignment_assessing_parser.add_argument('-vs_ws',
-                                          '--variant_sites_window_sliding',
-                                          help = 'Specify the window size to slice whole alignment to calculate variant sites (biallelic and multiallelic).',
-                                          type = int,
-                                          default = 0)
-  alignment_assessing_parser.add_argument('-opt_hvf',
-                                          '--output_hyperviriable_regione_free_file',
-                                          help = 'specify the threshold to remove hypervariable regions.',
-                                          type = int,
-                                          default = 0)
+#   alignment_assessing_parser = subparsers.add_parser('alignment_assessing',
+#                                           help = 'Assessment of whole genome alignment.',
+#                                           description = 'Features of assessing alignment composition.')
+#   alignment_assessing_parser.add_argument('-opt_dir',
+#                                           '--output_directory',
+#                                           help = 'Specify the output directory. Current working directory as default.',
+#                                           type = str,
+#                                           default = None)
+#   alignment_assessing_parser.add_argument('genome_alignment',
+#                                           nargs = '?',
+#                                           help = 'Input the genome alignment in fasta file.',
+#                                           metavar = 'GenomeAlignment',
+#                                           type = str)
+#   alignment_assessing_parser.add_argument('-cov',
+#                                           '--coverage',
+#                                           help = 'Assessing coverage of RefSeq in each sample.',
+#                                           action = 'store_true')
+#   alignment_assessing_parser.add_argument('-misinfo_col_dist',
+#                                           '--missinginfo_column_distribution',
+#                                           help = 'Plot the distribution of columns with missing information.',
+#                                           action = 'store_true')
+#   alignment_assessing_parser.add_argument('-vs',
+#                                           '--variant_sites',
+#                                           help = 'Report the absolute number and proportion of variant sites (biallelic and multiallelic).',
+#                                           action = 'store_true')
+#   alignment_assessing_parser.add_argument('-vs_ws',
+#                                           '--variant_sites_window_sliding',
+#                                           help = 'Specify the window size to slice whole alignment to calculate variant sites (biallelic and multiallelic).',
+#                                           type = int,
+#                                           default = 0)
+#   alignment_assessing_parser.add_argument('-opt_hvf',
+#                                           '--output_hyperviriable_regione_free_file',
+#                                           help = 'specify the threshold to remove hypervariable regions.',
+#                                           type = int,
+#                                           default = 0)
 
   
 def make_blast_db(ref_fna, opt_dir = os.getcwd()):
@@ -647,6 +578,7 @@ def sort_contig(contig_coor_dir_bit_seq):
 	return sorted_dict
 
 def bricklayer(contig, range_lst):
+
 	"""
 	bricklayer is greedy algorithm which minimizes gappy sites.
 	1) Create a contig backbone filled in with '-' using real ref contig length
@@ -786,7 +718,7 @@ def generate_par_report(args):
     peak_cpu = max([blast_CPU, bowtie2_CPU, raxml_CPU])
     rep_opt.write('Alignment is generated in mode of [{}]\n'.format(args.mode))
     if args.ancient_sample == 'None':
-        rep_opt.	write('No ancient sample integrated!\n')
+        rep_opt.write('No ancient sample integrated!\n')
     else:
         pass
     if args.minimum_quality is not None and args.ancient_sample != 'None':
@@ -817,12 +749,6 @@ def generate_par_report(args):
         rep_opt.write('Reads trimmed for damaged sites and used for reconstruction is output in fastq!\n')
     else:
         pass
-    if args.missing_information_control != -1:
-        rep_opt.write('{} missing information from ancient samples is allowed in each column.\n'.format(args.missing_information_control))
-    else:
-        rep_opt.write('0.5 mission information from ancient samples is allowed in each column.\n')
-    rep_opt.write('Modern taxa covered less than {}(ratio) are removed from alignment.\n'.format(args.remove_gappy_taxa))	
-    rep_opt.write('Ancient taxa covered less than {}(percentage) at {} depth are removed from alignment.\n'.format(args.remove_ancient_samples, args.minimum_coverage))    
     rep_opt.write('Minimum alignemnt length in blastn [{}]\n'.format(args.alignment_length))
     rep_opt.write('Peak CPU used [{}]\n'.format(str(peak_cpu)))
     rep_opt.close()
@@ -873,48 +799,9 @@ def generate_par_report(args):
           rep_opt.write('Reads trimmed for damaged sites and used for reconstruction is output in fastq!\n')
       else:
           pass
-      if args.missing_information_control != -1 and args.ancient_sample != 'None':
-          rep_opt.write('{} missing information from ancient samples is allowed in each column.\n'.format(args.missing_information_control))
-      else:
-          rep_opt.write('0.5 mission information from ancient samples is allowed in each column.\n')
-      if args.ancient_sample != 'None':
-          rep_opt.write('Ancient taxa covered less than {}(percentage) at {} depth are removed from alignment.\n'.format(args.remove_ancient_samples, args.minimum_coverage))    
-      else:
-          pass
-      rep_opt.write('Modern taxa covered less than {}(ratio) are removed from alignment.\n'.format(args.remove_gappy_taxa))  
       rep_opt.write('Peak CPU utilization: [{}]\n'.format(str(peak_cpu)))
       rep_opt.close()
 
-def remove_lowcov_ancient_samples(genome_aln, cov_cutff = 10):
-    cov_cutff = (100 - cov_cutff)/100
-    aln_dict = SeqIO.to_dict(SeqIO.parse(open(genome_aln), 'fasta'))
-    aln_lst_m = [aln_dict[t] for t in aln_dict if not t.startswith('a__')]
-    aln_lst_a = [aln_dict[t] for t in aln_dict if t.startswith('a__')]
-    aln_obj = AlignStats(aln_lst_a)
-    aln_a_removed = aln_lst_m+aln_obj.remove_gappy_taxa(cov_cutff)
-    return aln_a_removed
-
-
-def trimal(Genome_Aln):
-    cmd = 'trimal -gappyout -in {} -out {}'.format(Genome_Aln, "TrimalGappyout-"+Genome_Aln)
-    subprocess.call(cmd, shell = True)
-
-def tailor(Trimal_GenomeAln, mic, g_taxa = 0.1):
-    aln_dict = SeqIO.to_dict(SeqIO.parse(open(Trimal_GenomeAln), "fasta"))
-    aDNA_number = len([i for i in aln_dict if i.startswith('a__')])
-    if mic == -1:
-        cutoff = math.ceil(aDNA_number*0.5)
-        tailored_aln = ancient_sample_tailor(aln_dict, cutoff)
-    else:
-        cutoff = math.ceil(aDNA_number*(1-mic))
-        tailored_aln = ancient_sample_tailor(aln_dict, cutoff)
-    
-    tailored_aln_m = [t for t in tailored_aln if not t.id.startswith('a__')]
-    tailored_aln_a = [t for t in tailored_aln if t.id.startswith('a__')]
-
-    aln_obj = AlignStats(tailored_aln_m)
-    final_tuned_aln = aln_obj.remove_gappy_taxa(g_taxa) + tailored_aln_a
-    return final_tuned_aln
 
 def variant_sites(aln):
     aln_opt = AlignIO.read(aln, 'fasta')
@@ -938,13 +825,12 @@ def build_raxml(aln, raxml_t):
 
 def main():
 
-    parser = argparse.ArgumentParser('contigs_based', 'reads_based', 'alignment_tailor', 'alignment_assessing')
+    parser = argparse.ArgumentParser('contigs_based', 'reads_based', 'alignment_assessing')
     subparsers = parser.add_subparsers(help = 'program mode', dest = 'mode')
 
     add_blast_approach_cmd_options(subparsers)
     add_mapping_approach_cmd_options(subparsers)
-    add_alignment_tailor_cmd_options(subparsers)
-    add_alignment_assessing_cmd_option(subparsers)
+    # add_alignment_assessing_cmd_option(subparsers)
 
     args = parser.parse_args()
 
@@ -1006,19 +892,11 @@ def main():
         subprocess.call('mv *nhr ./{}'.format(dir_name), shell = True)
         subprocess.call('mv *bam ./{}'.format(dir_name), shell = True)
         out_stats('{}-GenomeAln_ContigsBased.fna'.format(args.ref_fna.split('.')[0]))
-        raw_genome_aln = subprocess.getoutput('ls *GenomeAln*').split('\n')[0]
-        aln_a_removed = remove_lowcov_ancient_samples(raw_genome_aln, args.remove_ancient_samples)
-        new_opt_name = 'lowcovr-'+raw_genome_aln
-        SeqIO.write(aln_a_removed, new_opt_name, 'fasta')
 
-        lowcovr_aln = subprocess.getoutput('ls *lowcovr*').split('\n')[0]
-        trimal(lowcovr_aln)
-        trimgappy_genome_aln = subprocess.getoutput('ls TrimalGappyout*').split('\n')[0]
-        final_tuned_aln = tailor(trimgappy_genome_aln, args.missing_information_control, args.remove_gappy_taxa)
-        new_opt_name = trimgappy_genome_aln.split('-')[2]+'_finetuned.aln'
-        SeqIO.write(final_tuned_aln, new_opt_name, 'fasta')    
-        fine_tune_aln = subprocess.getoutput('ls *finetuned*').split('\n')[0]
-        build_raxml(fine_tune_aln, args.raxml_threads)
+        raw_genome_aln = subprocess.getoutput('ls *GenomeAln*').split('\n')[0]
+        
+
+        # build_raxml(fine_tune_aln, args.raxml_threads)
 
     elif args.mode == 'reads_based':
 
@@ -1068,86 +946,58 @@ def main():
         subprocess.call('mv *bt2 ./{}'.format(dir_name), shell = True)
         subprocess.call('mv *bam ./{}'.format(dir_name), shell = True)
         out_stats('{}-GenomeAln_ReadsBased.fna'.format(args.ref_fna.split('.')[0]))
-        raw_genome_aln = subprocess.getoutput('ls *GenomeAln*').split('\n')[0]
-        aln_a_removed = remove_lowcov_ancient_samples(raw_genome_aln, args.remove_ancient_samples)
-        new_opt_name = 'lowcovr-' + raw_genome_aln
-        SeqIO.write(aln_a_removed, new_opt_name, 'fasta')
+        
 
-        lowcovr_aln = subprocess.getoutput('ls *lowcovr*').split('\n')[0]
-        trimal(lowcovr_aln)
-        trimgappy_genome_aln = subprocess.getoutput('ls TrimalGappyout*').split('\n')[0]
-        final_tuned_aln = tailor(trimgappy_genome_aln, args.missing_information_control, args.remove_gappy_taxa)
-        new_opt_name = trimgappy_genome_aln.split('-')[2]+'_finetuned.aln'
-        SeqIO.write(final_tuned_aln, new_opt_name, 'fasta')    
-        fine_tune_aln = subprocess.getoutput('ls *finetuned*').split('\n')[0]
-        build_raxml(fine_tune_aln, args.raxml_threads)
-    elif args.mode == 'alignment_tailor':
-
-        trimgappy_genome_aln = args.genome_alignment
-        aln_a_removed = remove_lowcov_ancient_samples(trimgappy_genome_aln, args.remove_ancient_samples)
-        INTER_a_removed_name = 'Inter_1.fna'
-        SeqIO.write(aln_a_removed, INTER_a_removed_name, 'fasta')
-        trimal_cmd = 'trimal -gappyout -in {} -out {}'.format(INTER_a_removed_name, "Inter_2.fna")
-        subprocess.call(trimal_cmd, shell = True)
-
-        final_tuned_aln = tailor('Inter_2.fna', args.missing_information_control, args.remove_gappy_taxa)
-        new_opt_name = args.genome_alignment_opt
-        SeqIO.write(final_tuned_aln, new_opt_name, 'fasta')
-        subprocess.call('rm Inter*', shell = True)
-
-    elif args.mode == 'alignment_assessing':
-        if args.output_directory == None:
-            if args.missinginfo_column_distribution:
-                misv_all = AlignStats(AlignIO.read(args.genome_alignment, 'fasta')).column_MissingValue_dist()
-                distribution(misv_all).savefig('Columndistribution_MissingValue_AllTaxa.png', dpi = 150)
-                misv_a_msa = MultipleSeqAlignment([i for i in AlignIO.read(args.genome_alignment, 'fasta') if i.id.startswith('a__')])
-                misv_m_msa = MultipleSeqAlignment([i for i in AlignIO.read(args.genome_alignment, 'fasta') if not i.id.startswith('a__')])
-                misv_a = AlignStats(misv_a_msa).column_MissingValue_dist()
-                misv_m = AlignStats(misv_m_msa).column_MissingValue_dist()
-                distribution(misv_a).savefig('Columndistribution_MissingValue_AncientTaxa.png', dpi = 150)
-                distribution(misv_m).savefig('Columndistribution_MissingValue_ModernTaxa.png', dpi = 150)
-                aln_obj = AlignStats(AlignIO.read(args.genome_alignment, 'fasta'))
-                Barplot(aln_obj.column_MissingValue_bar()).savefig('NumberColumn_cutoffs.png', dpi = 150)
-            else:
-                pass
-            if args.variant_sites:
-                aln_obj = AlignStats(AlignIO.read(args.genome_alignment, 'fasta'))
-                var_sites = aln_obj.variant_sites_ratio()
-                opt_var = open('Variant_sites_report.txt', 'w')
-                opt_var.write("Biallelic sites: {}\n".format(str(var_sites[2])))
-                opt_var.write("Biallelic sites ratio: {}\n".format(str(var_sites[0])))
-                opt_var.write("Multiallelic sites: {}\n".format(str(var_sites[3])))
-                opt_var.write("Multiallelic sites ratio: {}\n".format(var_sites[1]))
-                opt_var.close()
-            else:
-                pass
-            if args.variant_sites_window_sliding != 0:
-                window_size = args.variant_sites_window_sliding
-                aln_ipt = AlignIO.read(args.genome_alignment, 'fasta')
-                aln_ipt_len = len(aln_ipt[1, :]) 
-                opt_var = open('window_sliced_variant_sites_report.txt', 'w')
-                init_aln = aln_ipt[:,:1]
-                for i in range(0, aln_ipt_len, window_size):
-                    sliced_aln = aln_ipt[:, i:i+window_size]
-                    sliced_aln_obj = AlignStats(sliced_aln).variant_sites_ratio()
-                    opt_var.write(str(sliced_aln_obj[2])+'\t'+ str(sliced_aln_obj[3]) + '\n')
-                    if sliced_aln_obj[2] == 0 or sliced_aln_obj[3] == 0:
-                        init_aln += sliced_aln
-                opt_var.close()
-                SeqIO.write(init_aln[:, 2:], 'hyper_free_aln_0.fna', 'fasta')
-                ########
+        # build_raxml(fine_tune_aln, args.raxml_threads)
+#------------------------------------------------------------------------------------------------------------
+    # elif args.mode == 'alignment_assessing':
+    #     if args.output_directory == None:
+    #         if args.missinginfo_column_distribution:
+    #             misv_all = AlignStats(AlignIO.read(args.genome_alignment, 'fasta')).column_MissingValue_dist()
+    #             distribution(misv_all).savefig('Columndistribution_MissingValue_AllTaxa.png', dpi = 150)
+    #             misv_a_msa = MultipleSeqAlignment([i for i in AlignIO.read(args.genome_alignment, 'fasta') if i.id.startswith('a__')])
+    #             misv_m_msa = MultipleSeqAlignment([i for i in AlignIO.read(args.genome_alignment, 'fasta') if not i.id.startswith('a__')])
+    #             misv_a = AlignStats(misv_a_msa).column_MissingValue_dist()
+    #             misv_m = AlignStats(misv_m_msa).column_MissingValue_dist()
+    #             distribution(misv_a).savefig('Columndistribution_MissingValue_AncientTaxa.png', dpi = 150)
+    #             distribution(misv_m).savefig('Columndistribution_MissingValue_ModernTaxa.png', dpi = 150)
+    #             aln_obj = AlignStats(AlignIO.read(args.genome_alignment, 'fasta'))
+    #             Barplot(aln_obj.column_MissingValue_bar()).savefig('NumberColumn_cutoffs.png', dpi = 150)
+    #         else:
+    #             pass
+    #         if args.variant_sites:
+    #             aln_obj = AlignStats(AlignIO.read(args.genome_alignment, 'fasta'))
+    #             var_sites = aln_obj.variant_sites_ratio()
+    #             opt_var = open('Variant_sites_report.txt', 'w')
+    #             opt_var.write("Biallelic sites: {}\n".format(str(var_sites[2])))
+    #             opt_var.write("Biallelic sites ratio: {}\n".format(str(var_sites[0])))
+    #             opt_var.write("Multiallelic sites: {}\n".format(str(var_sites[3])))
+    #             opt_var.write("Multiallelic sites ratio: {}\n".format(var_sites[1]))
+    #             opt_var.close()
+    #         else:
+    #             pass
+    #         if args.variant_sites_window_sliding != 0:
+    #             window_size = args.variant_sites_window_sliding
+    #             aln_ipt = AlignIO.read(args.genome_alignment, 'fasta')
+    #             aln_ipt_len = len(aln_ipt[1, :]) 
+    #             opt_var = open('window_sliced_variant_sites_report.txt', 'w')
+    #             init_aln = aln_ipt[:,:1]
+    #             for i in range(0, aln_ipt_len, window_size):
+    #                 sliced_aln = aln_ipt[:, i:i+window_size]
+    #                 sliced_aln_obj = AlignStats(sliced_aln).variant_sites_ratio()
+    #                 opt_var.write(str(sliced_aln_obj[2])+'\t'+ str(sliced_aln_obj[3]) + '\n')
+    #                 if sliced_aln_obj[2] == 0 or sliced_aln_obj[3] == 0:
+    #                     init_aln += sliced_aln
+    #             opt_var.close()
+    #             SeqIO.write(init_aln[:, 2:], 'hyper_free_aln_0.fna', 'fasta')
+    #             ########
                 # Add an argument to threshold 
                 ########
-
-
-
-            else:
-                pass
-
-
-
-        else:
-            print("The feature of re-directing opts to a specified directory is still in the development !")    
+        #     else:
+        #         pass
+        # else:
+        #     print("The feature of re-directing opts to a specified directory is still in the development !")    
+#----------------------------------------------------------------------------------------------------------------
         
     else:
         sys.exit('Oops, choose either contigs_based, reads_based, or alignment_tailor. Please check help menu')
