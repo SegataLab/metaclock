@@ -443,7 +443,7 @@ def aln_filter(a_tab, par_tuple):
 	    a_tab = a_tab.loc[a_tab['#Samples(missing information < 5%)'] >= mini_sample]
 	    a_tab = a_tab.loc[a_tab['Avg_genetic_distance'] <= avg_dist]
 	    a_tab = a_tab.loc[a_tab['Stdv_genetic_distance'] <= stdv_dist]
-	    a_tab = a_tab.loc[a_tab['correlation'] >= cor]
+	    a_tab = a_tab.loc[(a_tab['correlation'] >= cor) | (a_tab['correlation'].isnull())]
 	    a_tab = a_tab.loc[a_tab['avg_time_measured_dist'] <= tm_dist]
 
 	    return a_tab  
