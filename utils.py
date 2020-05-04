@@ -258,6 +258,15 @@ def Barplot(df):
 
 	return plt
 
+def EvalCdf(sample, x):
+	count = 0.0
+	for value in sample:
+		if value <= x:
+			count += 1
+	prob = count / len(sample)
+	return prob
+
+
 
 
 
