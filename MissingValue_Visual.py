@@ -124,11 +124,11 @@ class Aln_Gap_Score(object):
 			gap_ratio = g.seq.count('-')/len(g.seq)
 			if ID.startswith('a__'):
 				Samples.append(ID)
-				gap_score.append(1 - gap_ratio)
+				gap_score.append((1 - gap_ratio)*100)
 				type_.append('Ancient')
 			else:
 				Samples.append(ID)
-				gap_score.append(1 - gap_ratio)
+				gap_score.append((1 - gap_ratio)*100)
 				type_.append('Modern')
 		df_ = pd.DataFrame.from_dict({'Samples': Samples, 'Reconstruction score': gap_score, 'Type': type_})
 		
