@@ -30,11 +30,13 @@ from Bio.Phylo.TreeConstruction import _Matrix
 from Bio import SeqIO
 import pandas as pd
 from utils import multi_proc_dict
+from utils import EvalCdf
 import numpy as np
 import matplotlib.pyplot as plt
 from visual_utils import hist_plot
 from BuildGenomeAln import build_raxml
 from ete3 import Tree
+import matplotlib.gridspec as gridspec
 
 
 
@@ -197,14 +199,15 @@ def add_visual_cmd_options(subparsers):
 	                                       help = 'Visualizing assessment',
 	                                       description = 'This featue visualizes assessment.')
     visual_parser.add_argument('at',
-	                            nargs = '?',
-	                            metavar = 'assessment_table',
-	                            help = 'Input the assessment table generated in preceding steps.',
-                                type = str)
-    visual_parser.add_argument('-a',
-                               '--all',
-                               help = 'Automatic visualization of all assessed aspects.',
-                               action = 'store_true')
+	                             nargs = '?',
+	                             metavar = 'assessment_table',
+	                             help = 'Input the assessment table generated in preceding steps.',
+                               type = str)
+    visual_parser.add_argument('opt',
+                               nargs = '?',
+                               metavar = 'output_put',
+                               help = 'Specify the output file name with suffix of png',
+                               type = str)
 
 
 
@@ -449,9 +452,6 @@ def aln_filter(a_tab, par_tuple):
 	    return a_tab  
 
 
-
-
-
 def main():
 
     parser = argparse.ArgumentParser('Assessment', 'Select', 'Visual')
@@ -608,28 +608,58 @@ def main():
 
     elif args.mode == 'Visual':
         print('In the development ......')
-        if args.all:
-        	df_ = pd.read_csv(args.at, sep = '\t')
-        	v1 = df_[df_['avg_time_measured_dist'] > 0]['avg_time_measured_dist']
+        df_ = pd.read_csv(args.at, sep = '\t')
+        v1 = df_['Length']
+        v2 = df_['SNV_density']
+        v3 = df_['Missing_value']
+        v4 = df_['#Samples(missing information < 5%)']
+        v5 = df_['correlation'].dropna()
+        v6 = df_['avg_time_measured_dist']
 
-        	v2 = df_['correlation'].dropna()
-        	fig, (ax1, ax2) = plt.subplots(2,1)
-        	hist_plot(ax1, v1, {'bins': 200})
-        	ax1.text(0.003, 30, 'Max: {} mutation/site/year\
-        		\nMin: {} mutation/site/year'.format(str(v1.max()), str(v1.min())))
-        	hist_plot(ax2, v2, {'bins': 50})
-        	fig.savefig('test.png')
+        v4_delimits = np.asarray(range(0, v4.max()))
+        CDFs = np.asarray([EvalCdf(v4, i) for i in v4_delimits])
+
+        # fig, (ax1, ax2, ax3, ax4, ax5, ax6) = plt.subplots(ncols = 3, nrows = 2, figsize=(15, 15))
+        # ax1.text(0.003, 30, 'Max: {} mutation/site/year\
+        # # 		\nMin: {} mutation/site/year'.format(str(v1.max()), str(v1.min())))
+        
+        fig = plt.figure(figsize = (15, 15), constrained_layout=True)
+        spec = gridspec.GridSpec(ncols=3, nrows=2, figure=fig)
+        fig_ax1 = fig.add_subplot(spec[0, 0])
+        fig_ax1.set_xlabel('Length (bp)', fontsize=16)
+        fig_ax1.tick_params(axis='both', which='major', labelsize=13)
+        hist_plot(fig_ax1, v1, {'bins': 200})
+        fig_ax2 = fig.add_subplot(spec[0, 1])
+        fig_ax2.set_xlabel('SNV density', fontsize=16)
+        fig_ax2.tick_params(axis='both', which='major', labelsize=13)
+        hist_plot(fig_ax2, v2, {'bins': 200})
+        fig_ax3 = fig.add_subplot(spec[0, 2])
+        fig_ax3.set_xlabel('Gap score', fontsize=16)
+        fig_ax3.tick_params(axis='both', which='major', labelsize=13)
+        hist_plot(fig_ax3, v3, {'bins': 200})
+        fig_ax4 = fig.add_subplot(spec[1, 0])
+        fig_ax4.set_xlabel('#Samples (Gap score < 1%)', fontsize=16)
+        fig_ax4.set_ylabel('CDF (Cumulative distribution frequency)', fontsize=16)
+        fig_ax4.tick_params(axis='both', which='major', labelsize=13)
+        hist_plot(fig_ax4, v4, {'bins': v4.max(), 'histtype': 'step', 'cumulative': True})        
+        fig_ax5 = fig.add_subplot(spec[1, 1])
+        fig_ax5.set_xlabel('Correlation efficient (Genetic distance X Time difference)', fontsize=14)
+        fig_ax5.tick_params(axis='both', which='major', labelsize=13)
+        hist_plot(fig_ax5, v5, {'bins': 200})
+        fig_ax6 = fig.add_subplot(spec[1, 2])
+        fig_ax6.set_xlabel('Average genetic distance (time-weighted)', fontsize=14)
+        hist_plot(fig_ax6, v6, {'bins': 200})
 
 
+        fig.savefig(args.opt)
 
-        else:
-            pass
 
 
 
 
     else:
         sys.exit('Please choose modes procvided in the menu !')
+
 if __name__ == '__main__':
     main()
 
