@@ -65,17 +65,17 @@ def read_args(args):
 def tailoring_cols(Seq_dict, c):
 	
 	core_col = []
-	Seq_lst_lst = [list(Seq_dict[g].seq) for g in Seq_dict]
 	Seq_lst = [key for key in Seq_dict]
+	Seq_lst_lst = [list(Seq_dict[g].seq) for g in Seq_lst]
 
-	for c in range(len(list(Seq_dict[Seq_lst[0]].seq))):
-		col_sites = [i[c] for i in Seq_lst_lst]
+	for C in range(len(list(Seq_dict[Seq_lst[0]].seq))):
+		col_sites = [i[C] for i in Seq_lst_lst]
 		tot_sites_num = len(col_sites)
-		if col_sites.count('-')/tot_sites_num > c+0.00001:
+		if float(col_sites.count('-')/tot_sites_num) > c+0.00001:
 			continue
 		else:
-			core_col.append(c)
-
+			core_col.append(C)
+	
 	rec_list=[]
 	for g in Seq_dict:
 		seq_lst = list(Seq_dict[g].seq)
@@ -108,6 +108,7 @@ class tailor(object):
 				selected_aln.add_sequence(ID, seq)
 
 		selected_aln_dict = SeqIO.to_dict(selected_aln)
+
 		return tailoring_cols(selected_aln_dict, c)
 
 	def short_list_tailor(self, short_list, c):
@@ -217,6 +218,7 @@ if __name__ == '__main__':
 		m_size = manual_tailoring_pars_check(pars['manual_tailoring'])[0]
 		a_size = manual_tailoring_pars_check(pars['manual_tailoring'])[1]
 		c_size = manual_tailoring_pars_check(pars['manual_tailoring'])[2]
+
 		SeqIO.write(aln_obj.manual_tailor(m_size, a_size, c_size), pars['tailored_ga_file'] ,'fasta')
 
 	elif pars['short_list']:
