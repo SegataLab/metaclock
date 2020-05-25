@@ -161,11 +161,11 @@ def add_select_cmd_options(subparsers):
                                default= 1.0)
     select_parser.add_argument('-f',
                                  '--feature',
-                                 help = 'Specify the types to output [CDS, rRNA, tRNA, non_CDS].\
+                                 help = 'Specify the types to output [CDS, tRNA, non_CDS].\
                                   If more than one type comma should be used to delimit.\
-                                 e.g. CDS,rRNA,tRNA,non_CDS: Output all kinds of alignment.',
+                                 e.g. CDS,tRNA,non_CDS: Output all kinds of alignment.',
                                  type = str,
-                                 default = 'CDS,rRNA,tRNA,non_CDS')
+                                 default = 'CDS,tRNA,nCDS')
 
     select_parser.add_argument('-ia',
                                '--individual_alignments',
@@ -401,55 +401,74 @@ def conv_2_str(lst):
 
 	converted_lst = [str(i) for i in lst]
 	return converted_lst
+
+def type_check(type_):
+  base_set = set(['tRNA', 'CDS', 'nCDS'])
+
+  if len(type_) == 3 and set(type_).issubset(base_set):
+    feature = type_
+  elif len(type_) == 2 and set(type_).issubset(base_set):
+    type_.append('Holder')
+    feature = type_
+  elif len(type_) == 1 and set(type_).issubset(base_set):
+    type_.append('Holder')
+    type_.append('Holder')
+    feature = type_
+  else:
+    sys.exit('Please specify the features [tRNA,CDS,nCDS] you want to select!')
+
+  return feature
+
+
+
 def aln_filter(a_tab, par_tuple):
 	# Here also set min/max bound to make sure function works !
 	# So here adds a parameter control to make sure inputs are within bounds
 
 
-	Length, SNV, SNV_density, missing_value, mini_sample, avg_dist, stdv_dist, cor, tm_dist = par_tuple
+  type_, Length, SNV, SNV_density, missing_value, mini_sample, avg_dist, stdv_dist, cor, tm_dist = par_tuple
+  type_ = type_check(type_)
+  len_range = (min(list(a_tab['Length'])), max(list(a_tab['Length'])))
+  SNV_range = (min(list(a_tab['#SNV'])), max(list(a_tab['#SNV'])))
+  SNV_density_range = (min(list(a_tab['SNV_density'])), max(list(a_tab['SNV_density'])))
+  missing_value_range = (min(list(a_tab['Missing_value'])), max(list(a_tab['Missing_value'])))
+  mini_sample_range = (min(list(a_tab['#Samples(missing information < 5%)'])),\
+   max(list(a_tab['#Samples(missing information < 5%)'])))
+  avg_dict_range = (min(list(a_tab['Avg_genetic_distance'])), max(list(a_tab['Avg_genetic_distance'])))
+  stdv_dict_range = (min(list(a_tab['Stdv_genetic_distance'])), max(list(a_tab['Stdv_genetic_distance'])))
+  if any( [Length > len_range[1],\
+           SNV > SNV_range[1],\
+           SNV_density < SNV_density_range[0],\
+           missing_value < missing_value_range[0],\
+           mini_sample > mini_sample_range[1],\
+           avg_dist < avg_dict_range[0],\
+           stdv_dist < stdv_dict_range[0]] ):
+      sys.exit("Please be aware the range:\n\
+      	     Length: {} - {}\n\
+      	     #SNV: {} - {}\n\
+      	     SNV density: {} - {}\n\
+      	     Missing value: {} - {}\n\
+      	     #Sample(missing value < 5 percent): {} - {}\n\
+      	     Average distance: {} - {}\n\
+      	     Stdv of average distance: {} - {}".format(len_range[0], len_range[1],\
+      	     	SNV_range[0], SNV_range[1], SNV_density_range[0], SNV_density_range[1],\
+      	     	missing_value_range[0], missing_value_range[1], mini_sample_range[0],\
+      	     	mini_sample_range[1], avg_dict_range[0], avg_dict_range[1],\
+      	     	stdv_dict_range[0], stdv_dict_range[1]))
+  
+  else:
+      a_tab = a_tab.loc[a_tab['Length'] >= Length]
+      a_tab = a_tab.loc[(a_tab['Type'] == type_[0]) | (a_tab['Type'] == type_[1]) | (a_tab['Type'] == type_[2])]
+      a_tab = a_tab.loc[a_tab['#SNV'] >= SNV]
+      a_tab = a_tab.loc[a_tab['SNV_density'] <= SNV_density]
+      a_tab = a_tab.loc[a_tab['Missing_value'] <= missing_value]
+      a_tab = a_tab.loc[a_tab['#Samples(missing information < 5%)'] >= mini_sample]
+      a_tab = a_tab.loc[a_tab['Avg_genetic_distance'] <= avg_dist]
+      a_tab = a_tab.loc[a_tab['Stdv_genetic_distance'] <= stdv_dist]
+      a_tab = a_tab.loc[(a_tab['correlation'] >= cor) | (a_tab['correlation'].isnull())]
+      a_tab = a_tab.loc[a_tab['avg_time_measured_dist'] <= tm_dist]
 
-	len_range = (min(list(a_tab['Length'])), max(list(a_tab['Length'])))
-	SNV_range = (min(list(a_tab['#SNV'])), max(list(a_tab['#SNV'])))
-	SNV_density_range = (min(list(a_tab['SNV_density'])), max(list(a_tab['SNV_density'])))
-	missing_value_range = (min(list(a_tab['Missing_value'])), max(list(a_tab['Missing_value'])))
-	mini_sample_range = (min(list(a_tab['#Samples(missing information < 5%)'])),\
-	 max(list(a_tab['#Samples(missing information < 5%)'])))
-	avg_dict_range = (min(list(a_tab['Avg_genetic_distance'])), max(list(a_tab['Avg_genetic_distance'])))
-	stdv_dict_range = (min(list(a_tab['Stdv_genetic_distance'])), max(list(a_tab['Stdv_genetic_distance'])))
-	
-	if any( [Length > len_range[1],\
-	         SNV > SNV_range[1],\
-	         SNV_density < SNV_density_range[0],\
-	         missing_value < missing_value_range[0],\
-	         mini_sample > mini_sample_range[1],\
-	         avg_dist < avg_dict_range[0],\
-	         stdv_dist < stdv_dict_range[0]] ):
-
-	    sys.exit("Please be aware the range:\n\
-	    	     Length: {} - {}\n\
-	    	     #SNV: {} - {}\n\
-	    	     SNV density: {} - {}\n\
-	    	     Missing value: {} - {}\n\
-	    	     #Sample(missing value < 5 percent): {} - {}\n\
-	    	     Average distance: {} - {}\n\
-	    	     Stdv of average distance: {} - {}".format(len_range[0], len_range[1],\
-	    	     	SNV_range[0], SNV_range[1], SNV_density_range[0], SNV_density_range[1],\
-	    	     	missing_value_range[0], missing_value_range[1], mini_sample_range[0],\
-	    	     	mini_sample_range[1], avg_dict_range[0], avg_dict_range[1],\
-	    	     	stdv_dict_range[0], stdv_dict_range[1]))
-	else:
-
-	    a_tab = a_tab.loc[a_tab['Length'] >= Length]
-	    a_tab = a_tab.loc[a_tab['#SNV'] >= SNV]
-	    a_tab = a_tab.loc[a_tab['SNV_density'] <= SNV_density]
-	    a_tab = a_tab.loc[a_tab['Missing_value'] <= missing_value]
-	    a_tab = a_tab.loc[a_tab['#Samples(missing information < 5%)'] >= mini_sample]
-	    a_tab = a_tab.loc[a_tab['Avg_genetic_distance'] <= avg_dist]
-	    a_tab = a_tab.loc[a_tab['Stdv_genetic_distance'] <= stdv_dist]
-	    a_tab = a_tab.loc[(a_tab['correlation'] >= cor) | (a_tab['correlation'].isnull())]
-	    a_tab = a_tab.loc[a_tab['avg_time_measured_dist'] <= tm_dist]
-
-	    return a_tab  
+      return a_tab  
 
 
 def main():
@@ -471,7 +490,7 @@ def main():
             shutil.rmtree(opt_dir)
         os.makedirs(opt_dir)
         opt_file_name = open(opt_dir + '/Assessment.txt', 'w')
-        opt_file_name.write('Child_alignment\t' + 'Function\t' + 'Length\t' + '#SNV\t' + 'SNV_density\t'\
+        opt_file_name.write('Child_alignment\t' + 'Type\t'+ 'Function\t' + 'Length\t' + '#SNV\t' + 'SNV_density\t'\
         	+ 'Missing_value\t' + '#Samples(missing information < 5%)\t'+'Avg_genetic_distance\t'\
         	+ 'Stdv_genetic_distance' + '\t' + 'correlation'+'\t'+'avg_time_measured_dist'+'\n')
         
@@ -489,6 +508,7 @@ def main():
             coding_percent = str(100*(1 - sum(nCDS_length)/len(wga_aln[1,:])))+'%'
 
             label_aln_pairs = [(i, gContent_db[i].Child_aln) for i in gContent_db]
+
             len_dict = {a: ChildAlnStats(gContent_db[a].Child_aln).aln_len() for a in gContent_db}
             vs_dict = multi_proc_dict(args.number_of_processors, multi_variable_sites, label_aln_pairs)
             mv_dict = {a: ChildAlnStats(gContent_db[a].Child_aln).missing_value() for a in gContent_db}  
@@ -510,7 +530,7 @@ def main():
             
             for label in gContent_db:
                 if len_dict[label] >= args.minimum_length: 
-                    dict_lst_BigMatrix[label].append([label, gContent_db[label].Function, len_dict[label],\
+                    dict_lst_BigMatrix[label].append([label, gContent_db[label].Type, gContent_db[label].Function, len_dict[label],\
                      dict_judge(label, vs_dict)[0], dict_judge(label, vs_dict)[1], \
                         dict_judge(label, mv_dict), dict_judge(label, no_samples_min_mv_dict),\
                         dict_judge(label, avg_pwd_dict)[0], dict_judge(label, avg_pwd_dict)[1],\
@@ -546,7 +566,8 @@ def main():
     elif args.mode == 'Select':
         wga_aln = AlignIO.read(args.wga, 'fasta')
         tab_df = pd.read_csv(args.a, sep = '\t')
-        pars = (args.length, args.variable_sites, args.variable_sites_density,\
+        feature_ = args.feature.split(',')
+        pars = (feature_, args.length, args.variable_sites, args.variable_sites_density,\
         	args.missing_value, args.minimum_no_sample_controled_mv, args.average_pairwise_distance,\
         	args.average_pairwise_distance_stdv, args.minimum_corrlation, args.time_measured_avg_distance)
         selected_alns = aln_filter(tab_df, pars)
@@ -561,6 +582,7 @@ def main():
         		
         		sys.stdout.write(selected_row["Child_alignment"]+'\t'\
         			+ str(selected_row['Function'])+'\t'\
+              + str(selected_row['Type'])
         			+ selected_row['Length'].astype(str)+'\t'\
         			+ selected_row['#SNV'].astype(str)+'\t'\
         			+ selected_row['SNV_density'].astype(str)+'\t'\
