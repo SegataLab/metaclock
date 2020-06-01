@@ -132,21 +132,26 @@ def add_select_cmd_options(subparsers):
                                type = int,
                                default = 0)
 
-    select_parser.add_argument('-vs_density',
-                               '--variable_sites_density',
-                               help = 'Specify the maximum variable sites density. default: [1]',
+    select_parser.add_argument('-vs_density_max',
+                               '--variable_sites_density_max',
+                               help = 'Specify the maximum SNP density. default: [1]',
                                type = float,
                                default = 1)
+    select_parser.add_argument('-vs_density_min',
+                               '--variable_sites_density_min',
+                               help = 'Specify the maximum SNP density. default: [0]',
+                               type = float,
+                               default = 0)
 
     select_parser.add_argument('-a_Pdist',
                                '--average_pairwise_distance',
-                               help = 'Specify the maximum average pairwise distance. default: [0]',
+                               help = 'Specify the maximum average pairwise distance. default: [1]',
                                type = float,
                                default = 1.0)
 
     select_parser.add_argument('-a_Pdist_stdv',
                                '--average_pairwise_distance_stdv',
-                               help = 'Specify the maximum Stdv of average pairwise distance. default: [0]',
+                               help = 'Specify the maximum Stdv of average pairwise distance. default: [1.0]',
                                type = float,
                                default = 1.0)
     select_parser.add_argument('-min_cor',
@@ -426,7 +431,7 @@ def aln_filter(a_tab, par_tuple):
 	# So here adds a parameter control to make sure inputs are within bounds
 
 
-  type_, Length, SNV, SNV_density, missing_value, mini_sample, avg_dist, stdv_dist, cor, tm_dist = par_tuple
+  type_, Length, SNV, SNV_density_max, SNV_density_min, missing_value, mini_sample, avg_dist, stdv_dist, cor, tm_dist = par_tuple
   type_ = type_check(type_)
   len_range = (min(list(a_tab['Length'])), max(list(a_tab['Length'])))
   SNV_range = (min(list(a_tab['#SNV'])), max(list(a_tab['#SNV'])))
@@ -438,7 +443,7 @@ def aln_filter(a_tab, par_tuple):
   stdv_dict_range = (min(list(a_tab['Stdv_genetic_distance'])), max(list(a_tab['Stdv_genetic_distance'])))
   if any( [Length > len_range[1],\
            SNV > SNV_range[1],\
-           SNV_density < SNV_density_range[0],\
+           SNV_density_max < SNV_density_range[0],\
            missing_value < missing_value_range[0],\
            mini_sample > mini_sample_range[1],\
            avg_dist < avg_dict_range[0],\
@@ -460,7 +465,7 @@ def aln_filter(a_tab, par_tuple):
       a_tab = a_tab.loc[a_tab['Length'] >= Length]
       a_tab = a_tab.loc[(a_tab['Type'] == type_[0]) | (a_tab['Type'] == type_[1]) | (a_tab['Type'] == type_[2])]
       a_tab = a_tab.loc[a_tab['#SNV'] >= SNV]
-      a_tab = a_tab.loc[a_tab['SNV_density'] <= SNV_density]
+      a_tab = a_tab.loc[(a_tab['SNV_density'] <= SNV_density_max) & (a_tab['SNV_density'] >= SNV_density_min)]
       a_tab = a_tab.loc[a_tab['Missing_value'] <= missing_value]
       a_tab = a_tab.loc[a_tab['#Samples(missing information < 5%)'] >= mini_sample]
       a_tab = a_tab.loc[a_tab['Avg_genetic_distance'] <= avg_dist]
@@ -567,7 +572,7 @@ def main():
         wga_aln = AlignIO.read(args.wga, 'fasta')
         tab_df = pd.read_csv(args.a, sep = '\t')
         feature_ = args.feature.split(',')
-        pars = (feature_, args.length, args.variable_sites, args.variable_sites_density,\
+        pars = (feature_, args.length, args.variable_sites, args.variable_sites_density_max, args.variable_sites_density_min,\
         	args.missing_value, args.minimum_no_sample_controled_mv, args.average_pairwise_distance,\
         	args.average_pairwise_distance_stdv, args.minimum_corrlation, args.time_measured_avg_distance)
         selected_alns = aln_filter(tab_df, pars)
@@ -634,9 +639,11 @@ def main():
         v1 = df_['Length']
         v2 = df_['SNV_density']
         v3 = df_['Missing_value']
-        v4 = df_['#Samples(missing information < 5%)']
+        v4 = df_['#Samples(missing information < 5%)'].dropna().astype(int)
         v5 = df_['correlation'].dropna()
         v6 = df_['avg_time_measured_dist']
+
+
 
         v4_delimits = np.asarray(range(0, v4.max()))
         CDFs = np.asarray([EvalCdf(v4, i) for i in v4_delimits])
