@@ -67,6 +67,11 @@ def read_args(args):
 						help = 'Number of processors to use',
 						default = 1,
 						type = int)
+	parser.add_argument('-bt',
+						'--blast_threads',
+						help = 'Number of threads used in blast. default [4] ',
+						default = 4,
+						type = int)
 	parser.add_argument('-hf',
 						'--homo_site_in_refs',
 						help = 'The number of references in which homologous sites can be found. default: [2]',
@@ -320,19 +325,42 @@ def ColSampler(ref_sub, matrix):
 	return homo_site_list
 
 
-def nproc_sampler(processor, ref_sub_lst, matrix):
+def nproc_sampler(processor, ref_sub_lst, matrix, aln_dict):
 
 	matrix_lst = [matrix] * len(ref_sub_lst)
-	return multi_map(processor, ColSampler, zip(ref_sub_lst, matrix_lst))
+	aln_dict_lst = [aln_dict] * len(ref_sub_lst)
+
+	return multi_map(processor, sampler, zip(ref_sub_lst, matrix_lst, aln_dict_lst))
+
+def sampler(args):
+
+	seq_pair, matrice, aln_dict = args
+	sites_containner_sub = []
+	col_sampled = ColSampler(seq_pair, matrice)
+	for c in col_sampled:
+		sites = col_finder(aln_dict, c[0], c[1])
+		que_tag = c[0]
+		que_col = c[0]+'$'+sites[0]
+		sub_col = c[1]+'$'+sites[1]
+		sites_containner_sub.append((que_tag, que_col))
+		sites_containner_sub.append((que_tag, sub_col))
+
+	return sites_containner_sub
+
 
 
 def check_max_uniq(site_lst):
 
 	votes = {'A': 0, 'T': 0, 'G': 0, 'C': 0, '-': 0}
 	for s in site_lst:
-		votes[s] += 1
+		if s in votes:
+			votes[s] += 1
+		else:
+			consensus = '-'
 
-	return max(votes, key=votes.get)
+	consensus = max(votes, key=votes.get)
+
+	return consensus
 
 
 def consensus_col_builder(lst_homo_cols, refs_num = 2): # ? Check here, might be some problems.
@@ -368,6 +396,16 @@ def aln_builder(aln, all_cols_list): # aln is the template alignment file
 # 3. Calculate size of shared sites by different Refs   
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
+def creat_uniqe_columns(super_lst):
+
+	super_dict = defaultdict(set)
+	for one_process in super_lst:
+		for one_col in one_process:
+			col_label = one_col[0]
+			col_seq = one_col[1]
+			super_dict[col_label].add(col_seq)
+	return super_dict
+
 class column_toolkit(object):
 	"""
 	Object column_toolkit is to handle all homologous sites
@@ -397,11 +435,13 @@ if __name__== '__main__':
 
 	refs_name_headers = refs_collector(pars['alns_folder'], opt_dir) # refenrece genome names in a list
 	ref_sub_groups = [i[0]+'@'+i[1] for i in itertools.combinations(refs_name_headers, 2)]
+
 	proc_log.write("Write aligment RefSeq in each aligment into one fasta file ---> Refs.fna\n")
 
 	make_blast_db('Refs.fna', opt_dir = opt_dir) # make blast database
 	proc_log.write("Prepare blast database ---> [Refs.fna.nhr, Refs.fna.nin, Refs.fna.nsq]\n")
-	blast_('Refs.fna', 'Refs.fna', 4, opt_dir = opt_dir) # call blast
+	blast_('Refs.fna', 'Refs.fna', pars['blast_threads'], opt_dir = opt_dir) # call blast
+
 	proc_log.write("Generate blast output ---> INTER_blast_opt_tmp.tab\n")
 	QC_on_blastn(opt_dir + '/INTER_blast_opt_tmp.tab', pars['length'], pid = pars['identity'], opt_dir = opt_dir) # QC on blast result
 	proc_log.write("Generate filtered blast output with length {} and identity {} ----> INTER_blastn_opt_tmp_cleaned.tab\n".\
@@ -410,22 +450,18 @@ if __name__== '__main__':
 
 	matrice = {pair: partition_genomes(opt_dir + '/INTER_blastn_opt_tmp_cleaned.tab')[pair] for pair in ref_sub_groups}
 
+
 	proc_log.write("-----------------------------------------\nToatl length homologous fragments\n\
 	# Genome pairs\t Length\n")
-
-	sites_containner = defaultdict(set)
 	for pair in ref_sub_groups:
 		sub_matric_frag_len = find_coordinates_between_fragements(matrice[pair])
 		tot_len = sum([len(i[0]) for i in sub_matric_frag_len])
-		proc_log.write("{}\t{}nt\n".format(pair.replace('@','X'), tot_len))		
-		col_sampled = ColSampler(pair, matrice)
-		for c in col_sampled:
-			sites = col_finder(aln_dict, c[0], c[1])
-			que_tag = c[0]
-			que_col = c[0]+'$'+sites[0]
-			sub_col = c[1]+'$'+sites[1]
-			sites_containner[que_tag].add(que_col)
-			sites_containner[que_tag].add(sub_col)
+		proc_log.write("{}\t{}nt\n".format(pair.replace('@','X'), tot_len))
+			
+	all_sites_nproc = nproc_sampler(pars['nproc'], ref_sub_groups, matrice, aln_dict)
+	sites_containner = creat_uniqe_columns(all_sites_nproc)
+
+
 
 	col_tool_obj = column_toolkit(sites_containner)
 	cols_merged = col_tool_obj.merge_col_voting(pars['homo_site_in_refs'])
@@ -454,3 +490,4 @@ if __name__== '__main__':
 # Notes: 
 #1. sampled coulmn redundancy can be solved by applying harder quality control on selection blastn results
 #2. be careful, reference alignment file name should be consistent with reference genome name inside fasta
+#3. Add multiple processing which I removed last time.
