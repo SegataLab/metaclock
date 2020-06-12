@@ -158,14 +158,14 @@ def find_coordinates_between_fragements(sub_matrix):
 		hit_object =blastn_sort(hit)
 		hit_senario = [hit_object.sseq, hit_object.sstart, hit_object.send, hit_object.qseq\
 		, hit_object.qstart, hit_object.qend]
-		homo_site_mapper(hit_senario)
+		# homo_site_mapper(hit_senario)
 		q_pos = homo_site_mapper(hit_senario)[0]
 		s_pos = homo_site_mapper(hit_senario)[1]
 		q_site = homo_site_mapper(hit_senario)[2]
 		s_site = homo_site_mapper(hit_senario)[3]
 		q_flag = homo_site_mapper(hit_senario)[4]
 		s_flag = homo_site_mapper(hit_senario)[5]
-
+		
 		s_pos_lst_genome.append(s_pos)
 		q_pos_lst_genome.append(q_pos)
 		s_site_lst_blast.append(s_site)
