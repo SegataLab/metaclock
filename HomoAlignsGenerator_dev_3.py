@@ -60,8 +60,9 @@ def read_args(args):
 	parser.add_argument('-gff',
 						'--gff_dir',
 						help = 'input a folder which contains all gffs corresponding to RefSeqs, \
-						if the type of sites (coding or non-coding) has to been considered.',
-						type = str)
+						or gff files will be generated automatically if this parameter is not chosen.',
+						type = str,
+						default = None)
 	parser.add_argument('-i',
 						'--identity',
 						help = 'minium identity of homologous sequences to keep as a hit. default: [95.0]',
@@ -478,7 +479,7 @@ def creat_uniqe_columns(super_lst):
 	return super_dict
 
 class column_toolkit(object):
-	
+
 	"""
 	Object column_toolkit is to handle all homologous sites
 	"""
@@ -532,19 +533,28 @@ if __name__== '__main__':
 	# 	sub_matric_frag_len = find_coordinates_between_fragements(pars['gff_dir'], pair, matrice[pair])
 	# 	# tot_len = sum([len(i[0]) for i in sub_matric_frag_len])
 		# proc_log.write("{}\t{}nt\n".format(pair.replace('@','X'), tot_len))
-			
-	all_sites_nproc = nproc_sampler(pars['nproc'], ref_sub_groups, matrice, aln_dict, pars['gff_dir'])
-	sites_containner = creat_uniqe_columns(all_sites_nproc)
+	
+	if pars['gff_dir'] is not None:		
+		all_sites_nproc = nproc_sampler(pars['nproc'], ref_sub_groups, matrice, aln_dict, pars['gff_dir'])
+		sites_containner = creat_uniqe_columns(all_sites_nproc)
+		col_tool_obj = column_toolkit(sites_containner)
+		cols_merged = col_tool_obj.merge_col_voting(pars['homo_site_in_refs'])
+		merged = aln_builder(AlignIO.read('{}/{}'.format(pars['alns_folder'], refs_name_headers[0]), 'fasta'),\
+		 cols_merged)
+		opt_merged_col_name = opt_dir + '/merged_aln_{}_refs.fna'.format(str(pars['homo_site_in_refs']))
+		SeqIO.write(merged, opt_merged_col_name, 'fasta')
+	else:
+		cmd_prokka = 'prokka_annotation.py {}'.format(pars['alns_folder'])
+		subprocess.call(cmd_prokka, shell = True)
+		all_sites_nproc = nproc_sampler(pars['nproc'], ref_sub_groups, matrice, aln_dict, "gffs_folder")
+		sites_containner = creat_uniqe_columns(all_sites_nproc)
+		col_tool_obj = column_toolkit(sites_containner)
+		cols_merged = col_tool_obj.merge_col_voting(pars['homo_site_in_refs'])
+		merged = aln_builder(AlignIO.read('{}/{}'.format(pars['alns_folder'], refs_name_headers[0]), 'fasta'),\
+		 cols_merged)
+		opt_merged_col_name = opt_dir + '/merged_aln_{}_refs.fna'.format(str(pars['homo_site_in_refs']))
+		SeqIO.write(merged, opt_merged_col_name, 'fasta')
 
-
-
-	col_tool_obj = column_toolkit(sites_containner)
-	cols_merged = col_tool_obj.merge_col_voting(pars['homo_site_in_refs'])
-	print(cols_merged)
-	merged = aln_builder(AlignIO.read('{}/{}'.format(pars['alns_folder'], refs_name_headers[0]), 'fasta'),\
-	 cols_merged)
-	opt_merged_col_name = opt_dir + '/merged_aln_{}_refs.fna'.format(str(pars['homo_site_in_refs']))
-	SeqIO.write(merged, opt_merged_col_name, 'fasta')
 
 # 1. Add a feature of calculating mutation/site
 
