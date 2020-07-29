@@ -82,6 +82,11 @@ def read_args(args):
 						help = 'Specify a name for output folder. default: [outputs]',
 						default = 'outputs',
 						type = str)
+	parser.add_argument('-vt',
+						'--voting_threshold',
+						help = 'Specify a threshold for majority rule in merging columns. default: [0.5]',
+						default = 0.51,
+						type = float)
 
 	return vars(parser.parse_args())
 
@@ -349,21 +354,29 @@ def sampler(args):
 
 
 
-def check_max_uniq(site_lst):
+def check_max_uniq(site_lst, majority_threshold):
 
 	votes = {'A': 0, 'T': 0, 'G': 0, 'C': 0, '-': 0}
 	for s in site_lst:
 		if s in votes:
 			votes[s] += 1
 		else:
-			consensus = '-'
+			consensus_ = '-'
 
-	consensus = max(votes, key=votes.get)
+	consensus_ = max(votes, key=votes.get)
+	dominance_allele_ratio = votes[consensus_]/sum(votes[i] for i in votes)
+
+	if dominance_allele_ratio >= majority_threshold:
+
+		consensus = consensus_
+	
+	else:
+		consensus = '-' 
 
 	return consensus
 
 
-def consensus_col_builder(lst_homo_cols, refs_num = 2): # ? Check here, might be some problems.
+def consensus_col_builder(lst_homo_cols, majority_threshold, refs_num = 2): # ? Check here, might be some problems.
 	lst_homo_cols = [c.split("$")[-1] for c in lst_homo_cols]
 	consensus_col = []
 	if len(lst_homo_cols) >= refs_num: 
@@ -372,7 +385,7 @@ def consensus_col_builder(lst_homo_cols, refs_num = 2): # ? Check here, might be
 			for col in range(len(lst_homo_cols)):
 				site_lst.append(lst_homo_cols[col][taxa])
 			# consensus_col.append(site_checker(site_lst))
-			consensus_col.append(check_max_uniq(site_lst))
+			consensus_col.append(check_max_uniq(site_lst, majority_threshold))
 	
 		return ''.join(consensus_col)
 	else:
@@ -386,6 +399,7 @@ def aln_builder(aln, all_cols_list): # aln is the template alignment file
 		seq = ''.join(rotated[taxa_idx])
 		rec_lst.append(SeqRecord(Seq(seq, generic_dna), id = reordered[taxa_idx], description = ''))		
 	return rec_lst
+	
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 # Last stage is to write a class which specifically handle
 # the generator of all homologous column pairs.
@@ -412,8 +426,8 @@ class column_toolkit(object):
 	"""
 	def __init__(self, homo_sites):
 		self.homo_sites = homo_sites
-	def merge_col_voting(self, number_refs = 2):
-		merged_col_lst = [consensus_col_builder(self.homo_sites[c], number_refs) for c in self.homo_sites]
+	def merge_col_voting(self, majority_threshold = 0.51, number_refs = 2):
+		merged_col_lst = [consensus_col_builder(self.homo_sites[c], majority_threshold, number_refs) for c in self.homo_sites]
 		res = list(filter(None, merged_col_lst))
 		return res
 
@@ -464,7 +478,7 @@ if __name__== '__main__':
 
 
 	col_tool_obj = column_toolkit(sites_containner)
-	cols_merged = col_tool_obj.merge_col_voting(pars['homo_site_in_refs'])
+	cols_merged = col_tool_obj.merge_col_voting(pars['voting_threshold'], pars['homo_site_in_refs'])
 	merged = aln_builder(AlignIO.read('{}/{}'.format(pars['alns_folder'], refs_name_headers[0]), 'fasta'),\
 	 cols_merged)
 	opt_merged_col_name = opt_dir + '/merged_aln_{}_refs.fna'.format(str(pars['homo_site_in_refs']))
