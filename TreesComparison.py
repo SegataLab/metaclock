@@ -24,6 +24,8 @@ def calc_rf(t1, t2):
 
 	normalized_rf = int(result[0])/int(result[1])
 
+
+
 	return normalized_rf
 
 for i in group:
