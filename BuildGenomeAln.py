@@ -304,10 +304,26 @@ def add_mapping_approach_cmd_options(subparsers):
   
 def make_blast_db(ref_fna, opt_dir = os.getcwd()):
 
+  """
+  It creates database of reference genome for blast
+  Input: reference genome in fasta format
+  Program: call 'makeblastdb'
+  Output: blast database files
+  """
+
 	cmd = 'makeblastdb -in {} -dbtype nucl -out {}'.format(opt_dir + '/' + ref_fna, opt_dir + '/' + ref_fna)
 	subprocess.call(cmd, shell = True)
 
 def generate_query_set_and_mf_file(contigs_folder):
+  """
+  Input: 'contigs' -> a folder of fasta files, each represents a genome
+  Program: 
+  1) It merges all individual fasta files into one fasta file, called 'INTER_QuerySet.fna',as an intermediate.
+  2) It creates a mapping file delimited by 'comma', 1st column is genome name (i.e. file name) and 2nd column is 
+  name of the contig which belongs to the genome.
+  Output: 1) A merged fasta file, INTER_QuerySet.fna, for downstream analysis as input
+          2) A mapping file, 1st column is genome name and 2nd column is contig name 
+  """
 
 	opt_file = open('INTER_genome_contigs_mp.csv', 'w')
 	subprocess.call('cat {}/* > INTER_QuerySet.fna'.format(contigs_folder), shell = True)
@@ -322,6 +338,15 @@ def generate_query_set_and_mf_file(contigs_folder):
 
 
 def blast_(ref_fna, query, b_t, opt_dir = os.getcwd()):
+  """
+  It blasts all individual genome sequences which are merged in 'INTER_QuerySet.fna'
+  against the reference genome which is preprocessed as blast database format
+  
+  Input: 1) reference genome name, 2) 'INTER_QuertSet.fna', 3) number of threads
+  Program: Call 'blastn' with fixed command line
+  Output: 'INTER_blast_opt_tmp.tab' a big table which contains all hits searched using blast
+
+  """
 
     outfmt = '6 qaccver saccver pident length mismatch gapopen qstart qend\
  sstart send evalue bitscore qseq sseq'
@@ -709,6 +734,9 @@ def output_trimmed_reads(trim_pos, bam_file):
 
 
 def generate_par_report(args):
+  """
+  This collects arguments of main parameters and outputs them in 'Parameters_setting.txt' 
+  """
 
   rep_opt = open('Parameters_setting.txt', 'w')
   if args.mode == 'contigs_based':
@@ -826,13 +854,15 @@ def build_raxml(aln, raxml_t):
 def main():
 
     parser = argparse.ArgumentParser('contigs_based', 'reads_based', 'alignment_assessing')
+    # Holding all info necessary to parse the command line into python data type
     subparsers = parser.add_subparsers(help = 'program mode', dest = 'mode')
+    # Creating sub-commands
 
-    add_blast_approach_cmd_options(subparsers)
-    add_mapping_approach_cmd_options(subparsers)
+    add_blast_approach_cmd_options(subparsers) # add commands to blast-approach functionality
+    add_mapping_approach_cmd_options(subparsers) # add commands to mapping-approach functionality
     # add_alignment_assessing_cmd_option(subparsers)
 
-    args = parser.parse_args()
+    args = parser.parse_args() # Added arguments are called and stored in args
 
     if args.mode == 'contigs_based':
 
@@ -1006,12 +1036,12 @@ def main():
 
 if __name__ == '__main__':
 	
-    start = timeit.default_timer()
-    main()
-    stop = timeit.default_timer()
-    time_callapsed = stop - start
-    par_file = open("Parameters_setting.txt", "a+")
-    par_file.write("Time used:{}(s)\n".format(str(time_callapsed)))
+    start = timeit.default_timer() # Starting timer
+    main() # Excuting the main script
+    stop = timeit.default_timer() # Ending timer 
+    time_callapsed = stop - start # 
+    par_file = open("Parameters_setting.txt", "a+") # Reopen parameter setting file for appending
+    par_file.write("Time used:{}(s)\n".format(str(time_callapsed))) # Appending time collapsed to parameter setting file
     par_file.close()
 
 
