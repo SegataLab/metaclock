@@ -800,101 +800,101 @@ def output_trimmed_reads(trim_pos, bam_file):
 
 
 def generate_par_report(args):
-    """
-    This collects arguments of main parameters and outputs them in 'Parameters_setting.txt' 
-    """
+	"""
+	This collects arguments of main parameters and outputs them in 'Parameters_setting.txt' 
+	"""
 
-    rep_opt = open('Parameters_setting.txt', 'w')
-    if args.mode == 'contigs_based':
-        blast_CPU = int(args.blast_threads)
-        bowtie2_CPU = int(args.threads)*int(args.processor)
-        # raxml_CPU = int(args.raxml_threads)
-        peak_cpu = max([blast_CPU, bowtie2_CPU, raxml_CPU])
-        rep_opt.write('Alignment is generated in mode of [{}]\n'.format(args.mode))
-        if args.ancient_sample == 'None':
-            rep_opt.write('No ancient sample integrated!\n')
-        else:
-            pass
-        if args.minimum_quality is not None and args.ancient_sample != 'None':
-            rep_opt.write('Minimum quality of aligned reads kept [{}]\n'.format(args.minimum_quality))
-        else:
-            pass
-        if args.minimum_length is not None and args.ancient_sample != 'None':
-            rep_opt.write('Minimum length of aligned reads kept [{}nt]\n'.format(args.minimum_length))
-        else:
-            pass
-        if args.minimum_coverage is not None and args.ancient_sample != 'None':     
-            rep_opt.write('Minimum coverage of postions kept [{}]\n'.format(args.minimum_coverage))
-        else:
-            pass
-        if args.max_snps is not None and args.ancient_sample != 'None':
-            rep_opt.write('Maxium edit distance on the alignment for a read to pass [{}]\n'.format(args.max_snps))
-        else:
-            pass
-        if args.identity is not None:
-            rep_opt.write('Minimum alignment identity in blastn [{}]\n'.format(args.identity))
-        else:
-            pass
-        if args.trim_reads_end is not None and args.ancient_sample != 'None':
-            rep_opt.write('Length of reads end trimmed: {}\n'.format(args.trim_reads_end))
-        else:
-            pass
-        if args.trimmed_reads and args.ancient_sample != 'None':
-            rep_opt.write('Reads trimmed for damaged sites and used for reconstruction is output in fastq!\n')
-        else:
-            pass
-        rep_opt.write('Minimum alignemnt length in blastn [{}]\n'.format(args.alignment_length))
-        rep_opt.write('Peak CPU used [{}]\n'.format(str(peak_cpu)))
-        rep_opt.close()
+	rep_opt = open('Parameters_setting.txt', 'w')
+	if args.mode == 'contigs_based':
+		blast_CPU = int(args.blast_threads)
+		bowtie2_CPU = int(args.threads)*int(args.processor)
+		raxml_CPU = int(args.raxml_threads)
+		peak_cpu = max([blast_CPU, bowtie2_CPU, raxml_CPU])
+		rep_opt.write('Alignment is generated in mode of [{}]\n'.format(args.mode))
+		if args.ancient_sample == 'None':
+			rep_opt.write('No ancient sample integrated!\n')
+		else:
+			pass
+		if args.minimum_quality is not None and args.ancient_sample != 'None':
+			rep_opt.write('Minimum quality of aligned reads kept [{}]\n'.format(args.minimum_quality))
+		else:
+			pass
+		if args.minimum_length is not None and args.ancient_sample != 'None':
+			rep_opt.write('Minimum length of aligned reads kept [{}nt]\n'.format(args.minimum_length))
+		else:
+			pass
+		if args.minimum_coverage is not None and args.ancient_sample != 'None':		
+			rep_opt.write('Minimum coverage of postions kept [{}]\n'.format(args.minimum_coverage))
+		else:
+			pass
+		if args.max_snps is not None and args.ancient_sample != 'None':
+			rep_opt.write('Maxium edit distance on the alignment for a read to pass [{}]\n'.format(args.max_snps))
+		else:
+			pass
+		if args.identity is not None:
+			rep_opt.write('Minimum alignment identity in blastn [{}]\n'.format(args.identity))
+		else:
+			pass
+		if args.trim_reads_end is not None and args.ancient_sample != 'None':
+			rep_opt.write('Length of reads end trimmed: {}\n'.format(args.trim_reads_end))
+		else:
+			pass
+		if args.trimmed_reads and args.ancient_sample != 'None':
+			rep_opt.write('Reads trimmed for damaged sites and used for reconstruction is output in fastq!\n')
+		else:
+			pass
+		rep_opt.write('Minimum alignemnt length in blastn [{}]\n'.format(args.alignment_length))
+		rep_opt.write('Peak CPU used [{}]\n'.format(str(peak_cpu)))
+		rep_opt.close()
 
-    if args.mode == 'reads_based':
-        aDNA_CPU = int(args.a_threads)*int(args.a_processor)
-        mDNA_CPU = int(args.m_threads)*int(args.m_processor)
-        raxml_CPU = int(args.raxml_threads)
-        peak_cpu = max([aDNA_CPU, mDNA_CPU, raxml_CPU])
-        rep_opt.write('Alignment is generated in mode of [{}]\n'.format(args.mode))
-        if args.ancient_sample == 'None':
-            rep_opt.write('No ancient sample integrated!\n')
-        else:
-            pass
-        if args.a_minimum_quality is not None and args.ancient_sample != 'None':
-            rep_opt.write('Minimum quality of aligned reads (ancient samples) kept [{}]\n'.format(args.a_minimum_quality))
-        else:
-            pass
-        if args.a_minimum_length is not None and args.ancient_sample != 'None':
-            rep_opt.write('Minimum length of aligned reads (ancient samples) kept [{}nt]\n'.format(args.a_minimum_length))
-        else:
-            pass
-        if args.a_minimum_coverage is not None and args.ancient_sample != 'None':       
-            rep_opt.write('Minimum coverage (ancient samples) of postions kept [{}]\n'.format(args.a_minimum_coverage))
-        else:
-            pass
-        if args.a_max_snps is not None and args.ancient_sample != 'None':
-            rep_opt.write('Maxium edit distance on the alignment for a read (ancient samples) to pass [{}]\n'.format(args.a_max_snps))
-        else:
-            pass
-        if args.m_minimum_length is not None:
-            rep_opt.write('Minimum length of aligned reads (modern samples) kept [{}nt]\n'.format(args.m_minimum_length))
-        else:
-            pass
-        if args.a_minimum_coverage is not None:     
-            rep_opt.write('Minimum coverage (modern samples) of postions kept [{}]\n'.format(args.m_minimum_coverage))
-        else:
-            pass
-        if args.a_max_snps is not None:
-            rep_opt.write('Maxium edit distance on the alignment for a read (modern samples) to pass [{}]\n'.format(args.m_max_snps))
-        else:
-            pass
-        if args.trim_reads_end is not None and args.ancient_sample != 'None':
-            rep_opt.write('Length of reads end trimmed: {}\n'.format(args.trim_reads_end))
-        else:
-            pass
-        if args.trimmed_reads and args.ancient_sample != 'None':
-            rep_opt.write('Reads trimmed for damaged sites and used for reconstruction is output in fastq!\n')
-        else:
-            pass
-        rep_opt.write('Peak CPU utilization: [{}]\n'.format(str(peak_cpu)))
-        rep_opt.close()
+	if args.mode == 'reads_based':
+		aDNA_CPU = int(args.a_threads)*int(args.a_processor)
+		mDNA_CPU = int(args.m_threads)*int(args.m_processor)
+		raxml_CPU = int(args.raxml_threads)
+		peak_cpu = max([aDNA_CPU, mDNA_CPU, raxml_CPU])
+		rep_opt.write('Alignment is generated in mode of [{}]\n'.format(args.mode))
+		if args.ancient_sample == 'None':
+			rep_opt.write('No ancient sample integrated!\n')
+		else:
+			pass
+		if args.a_minimum_quality is not None and args.ancient_sample != 'None':
+			rep_opt.write('Minimum quality of aligned reads (ancient samples) kept [{}]\n'.format(args.a_minimum_quality))
+		else:
+			pass
+		if args.a_minimum_length is not None and args.ancient_sample != 'None':
+			rep_opt.write('Minimum length of aligned reads (ancient samples) kept [{}nt]\n'.format(args.a_minimum_length))
+		else:
+			pass
+		if args.a_minimum_coverage is not None and args.ancient_sample != 'None':		
+			rep_opt.write('Minimum coverage (ancient samples) of postions kept [{}]\n'.format(args.a_minimum_coverage))
+		else:
+			pass
+		if args.a_max_snps is not None and args.ancient_sample != 'None':
+			rep_opt.write('Maxium edit distance on the alignment for a read (ancient samples) to pass [{}]\n'.format(args.a_max_snps))
+		else:
+			pass
+		if args.m_minimum_length is not None:
+			rep_opt.write('Minimum length of aligned reads (modern samples) kept [{}nt]\n'.format(args.m_minimum_length))
+		else:
+			pass
+		if args.a_minimum_coverage is not None:		
+			rep_opt.write('Minimum coverage (modern samples) of postions kept [{}]\n'.format(args.m_minimum_coverage))
+		else:
+			pass
+		if args.a_max_snps is not None:
+			rep_opt.write('Maxium edit distance on the alignment for a read (modern samples) to pass [{}]\n'.format(args.m_max_snps))
+		else:
+			pass
+		if args.trim_reads_end is not None and args.ancient_sample != 'None':
+			rep_opt.write('Length of reads end trimmed: {}\n'.format(args.trim_reads_end))
+		else:
+			pass
+		if args.trimmed_reads and args.ancient_sample != 'None':
+			rep_opt.write('Reads trimmed for damaged sites and used for reconstruction is output in fastq!\n')
+		else:
+			pass
+		rep_opt.write('Peak CPU utilization: [{}]\n'.format(str(peak_cpu)))
+		rep_opt.close()
 
 
 def variant_sites(aln):
