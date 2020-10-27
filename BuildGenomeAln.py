@@ -107,6 +107,13 @@ def add_blast_approach_cmd_options(subparsers):
             default: [3]',
         default = '3',
         type = str)
+    blast_parser.add_argument(
+        '-mindomall',
+        '--minimum_dominant_allele',
+        help = 'Cutoff for degree of allele dominance for a position to be considered \
+        polymorphic when building consensus sequence. default: [0.8]',
+        default = 0.8,
+        type = float)
 
     blast_parser.add_argument(
         '-m',
@@ -583,23 +590,24 @@ def parallel_filter_m(args):
 
 def build_consensus(multi_args):
 
-    f_bam, mc, trim_end = multi_args
+    f_bam, mc, trim_end, domall = multi_args
     consensus_path = os.path.dirname(__file__)+"/cmseq/consensus.py"
 
     if trim_end != None:
 
-        cmd = "python3 {} {} --sortindex --mincov {} --trim {} > {}".format(consensus_path, f_bam, mc, trim_end, f_bam.split(".")[0]+'_consensus.fna')
+        cmd = "python3 {} {} --sortindex --mincov {} --trim {} --dominant_frq_thrsh {} > {}".format(consensus_path, f_bam, mc, trim_end, domall, f_bam.split(".")[0]+'_consensus.fna')
         subprocess.call(cmd, shell = True)
     else:
-        cmd = "python3 {} {} --sortindex --mincov {} > {}".format(consensus_path, f_bam, mc, f_bam.split(".")[0]+'_consensus.fna')
+        cmd = "python3 {} {} --sortindex --mincov {} --dominant_frq_thrsh {} > {}".format(consensus_path, f_bam, mc, domall, f_bam.split(".")[0]+'_consensus.fna')
         subprocess.call(cmd, shell = True)
 
 def parallel_consensus(args):
 
     f_bams = subprocess.getoutput("ls filtered_INTER_*bam").split('\n')
     mc_lst = [args.minimum_coverage] * len(f_bams)
-    trim_lst = [args.trim_reads_end] * len(f_bams) 
-    multi_map(args.processor, build_consensus, zip(f_bams, mc_lst, trim_lst))
+    trim_lst = [args.trim_reads_end] * len(f_bams)
+    domall_lst = [args.minimum_dominant_allele] * len(f_bams)
+    multi_map(args.processor, build_consensus, zip(f_bams, mc_lst, trim_lst, domall_lst))
 
 
 def parallel_consensus_a(args):
