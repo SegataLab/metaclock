@@ -435,7 +435,7 @@ def bowtie2_build(ref_fna):
 
 def detect_reads_suffix(reads_foler):
 
-    reads_file = subprocess.getoutput('ls {}'.format(reads_foler)).split('\n')[0]
+    reads_file = subprocess.getoutput('ls {}/*fastq*'.format(reads_foler)).split('\n')[0]
     return reads_file.split('.')[-1]  
 
 def mapping_(multi_args):
@@ -444,11 +444,11 @@ def mapping_(multi_args):
     k = k.replace("*", "")
     suffix = detect_reads_suffix(s)
     if suffix == "bz2":
-        cmd = 'bzcat {}/*bz2 | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | \
+        cmd = 'bzcat {}/*fastq.bz2 | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | \
 samtools view -bS - > {}'.format(s, ref, t, ' '.join(k.split(',')), s+'.bam')
         subprocess.call(cmd, shell = True)
     elif suffix == "gz":
-        cmd = 'zcat {}/*gz | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | \
+        cmd = 'zcat {}/*fastq.gz | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | \
 samtools view -bS - > {}'.format(s, ref, t, ' '.join(k.split(',')), s+'.bam')
         subprocess.call(cmd, shell = True)
     elif suffix == "fastq":
@@ -465,11 +465,11 @@ def mapping_a(multi_args):
     suffix = detect_reads_suffix(s)
     labeled_ancient_opt_bam = '/'.join(s.split('/')[:-1])+'/a__'+ s.split('/')[-1] + '.bam'
     if suffix == "bz2":
-        cmd = 'bzcat {}/*bz2 | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | \
+        cmd = 'bzcat {}/*fastq.bz2 | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | \
 samtools view -bS - > {}'.format(s, ref, t, ' '.join(k.split(',')), labeled_ancient_opt_bam)
         subprocess.call(cmd, shell = True)
     elif suffix == "gz":
-        cmd = 'zcat {}/*gz | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | \
+        cmd = 'zcat {}/*fastq.gz | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | \
 samtools view -bS - > {}'.format(s, ref, t, ' '.join(k.split(',')), labeled_ancient_opt_bam)
         subprocess.call(cmd, shell = True)
     elif suffix == "fastq":
@@ -487,11 +487,11 @@ def mapping_m(multi_args):
     suffix = detect_reads_suffix(s)
     labeled_modern_opt_bam = '/'.join(s.split('/')[:-1])+'/m__'+ s.split('/')[-1] + '.bam'
     if suffix == "bz2":
-        cmd = 'bzcat {}/*bz2 | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | \
+        cmd = 'bzcat {}/*.fastq.bz2 | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | \
 samtools view -bS - > {}'.format(s, ref, t, ' '.join(k.split(',')), labeled_modern_opt_bam)
         subprocess.call(cmd, shell = True)
-    elif suffix == "gz":
-        cmd = 'zcat {}/*gz | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | \
+    elif suffix == "fastq.gz":
+        cmd = 'zcat {}/*fastq.gz | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | \
 samtools view -bS - > {}'.format(s, ref, t, ' '.join(k.split(',')), labeled_modern_opt_bam)
         subprocess.call(cmd, shell = True)
     elif suffix == "fastq":
