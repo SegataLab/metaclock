@@ -1,3 +1,7 @@
+"""
+Maybe call it Mac.py (metagenome alignment constructor)
+"""
+
 def main():
     # parse parameters
     pass
@@ -57,71 +61,59 @@ def build_db_file(mode, ref_genome, db_dir):
     return params['dest']
 
 
-def build_mapping(mode, db_dest, param_set):
-    if mode == reads:
-        bwt2_batch_mapping()
+def build_mapping(mode, age_type, db_dest, param_set):
+    if mode == 'reads':
+        if age_type == 1:
+            # Using ancient-specific param_set
+            bwt2_batch_mapping() # parameters specific to mapping ancient samples
+            batch_bam_filter() # parameters specific to filtering ancient bams
+            batch_consensus_builder() # parameters specific to building ancient consensus sequences
+        elif age_type == 2:
+            # Using modern-specific param_set
+            bwt2_batch_mapping() # mapping modern samples with modern-specific parameter
+            batch_bam_filter() # parameters specific to filtering modern bams
+            batch_consensus_builder() # parameters specific to building modern consensus sequences
     elif mode == 'configs':
         blast_genomes()
 
     return dest_dir
 
 
-def single_mapping(multi_args):
-    ref, s, t, k = multi_args
-    k = k.replace("*", "")
-    suffix = detect_reads_suffix(s)
-    labeled_modern_opt_bam = '/'.join(s.split('/')[:-1])+'/m__'+ s.split('/')[-1] + '.bam'
+def single_mapping(ref_genome, sample, threads, m_mode):
+    """
+    Args: 
+        ref_genome: the input file name of reference genome
+        sample: the input folder containing metagenomic reads of a sample
+        threads: tunable parameter for #threads in bowtie2
+        m_mode: tunable parameter for searching mode in bowtie2
+
+    """
+
+    m_mode = m_mode.replace("*", "") # Removing escape character for m_mode 
+    suffix = detect_reads_suffix(sample)
+    opt_raw_bam = sample + '.bam'
+
     if suffix == "bz2":
-        cmd = 'bzcat {}/*fastq.bz2 | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | samtools view -bS - > {}'.format(s, ref, t, ' '.join(k.split(',')), labeled_modern_opt_bam)
+        cmd = 'bzcat {}/*fastq.bz2 | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | samtools view -bS - > {}'.format(sample, ref_genome, threads, ' '.join(k.split(',')), opt_raw_bam)
         run_cmd_in_shell(cmd)
     elif suffix == "gz":
-        cmd = 'zcat {}/*fastq.gz | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | samtools view -bS - > {}'.format(s, ref, t, ' '.join(k.split(',')), labeled_modern_opt_bam)
+        cmd = 'zcat {}/*fastq.gz | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | samtools view -bS - > {}'.format(sample, ref_genome, threads, ' '.join(k.split(',')), opt_raw_bam)
         run_cmd_in_shell(cmd)
     elif suffix == "fastq":
-        cmd = 'cat {}/*fastq | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | samtools view -bS - > {}'.format(s, ref, t, ' '.join(k.split(',')), labeled_modern_opt_bam)
+        cmd = 'cat {}/*fastq | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | samtools view -bS - > {}'.format(sample, ref_genome, threads, ' '.join(k.split(',')), opt_raw_bam)
         run_cmd_in_shell(cmd)
     else:
         sys.exit("Reads have to be in the form of .bz2, .gz or .fastq!")
 
-def bwt2_batch_mapping(age_type, ):
-    """
-    Args:
-      args_type (int): 1 -> ancient, 2 -> modern
-    """
-
-    if ',' in samples:
-        sample_list = [os.getcwd() + '/' +  i for i in samples]
-    elif '.txt' in samples:
-        sample_list = [os.getcwd() + '/' +  i.rstrip() for i in open(samples).readlines()]
-    else:
-        sample_list = [os.getcwd() + '/' + samples]
+def bwt2_batch_mapping(sample_list, metagenome_ipt, ref_genome, threads, m_mode):
+    
+  
 
     threads = [threads] * len(sample_list)
     ref_lst = [ref_genome] * len(sample_list)
-    mode = [search_mode] * len(sample_list)
+    mode = [m_mode] * len(sample_list)
 
     multi_map(processors, single_mapping, zip(ref_lst, sample_list, threads, mode))
-
-def blast_genomes():
-
-    outfmt = '6 qaccver saccver pident length mismatch gapopen qstart qend\
-                    sstart send evalue bitscore qseq sseq'
-    cmd = "blastn -db {} -query {} -outfmt '{}' -num_threads {}\
- 			-word_size 9 -out {}/INTER_blast_opt_tmp.tab".format(ref_fna, query, outfmt, threads, opt_dir)
-
-    run_cmd_in_shell(cmd)
-
-def QC_on_blastn(blast_tab, length, pid, opt_dir = os.getcwd()):
-
-    """
-    It applies QC on blast output
-    Input: 1)'INTER_blast_opt_tmp.tab', 2) length of hits, 3) identity percentage of hits
-    Program: call script 'bo6_screen.py'
-    Output: filtered blast output, 'INTER_blastn_opt_tmp_cleaned.tab' 
-    """
-
-    cmd = 'cut -f 1-14 {} | bo6_screen.py --length {} --pid {} > {}/INTER_blastn_opt_tmp_cleaned.tab'.format(blast_tab, length, pid, opt_dir)
-    subprocess.call(cmd, shell = True)
 
 
 def run_cmd_in_shell(cmd):
@@ -135,61 +127,73 @@ def detect_reads_suffix(reads_foler):
     reads_file = subprocess.getoutput('ls {}/*fastq*'.format(reads_foler)).split('\n')[0]
     return reads_file.split('.')[-1]
 
-def single_bam_filter(multi_args):
+def single_bam_filter(raw_bam, min_q, min_l, max_snp_edist):
     """
     Args: a given bam coupled with parameters for QC
-    Return: filtered bam 
+        raw_bam: the raw bam file output from bwt2_batch_mapping()
+        min_q: a tunable parameter for minimum quality
+        min_l: a tunable parameter for minimum length
+        max_snp_edist: a tunable parameter for maximum SNP edit distance 
+
+    Return: a filtered bam [filtered_sample.bam] 
     """
 
-    bam, mq, ml, m_snp = multi_args
     filter_path = os.path.dirname(__file__)+"/cmseq/filter.py"
-    cmd = "samtools view -h -F 0x4 {} | python3 {} --minqual {} --minlen {} --maxsnps {} > {}".format(bam, filter_path,\
-     mq, ml, m_snp, "filtered_INTER_"+bam)
-    subprocess.call(cmd, shell =True)
+    cmd = "samtools view -h -F 0x4 {} | python3 {} --minqual {} --minlen {} --maxsnps {} > {}".format(raw_bam, filter_path,\
+     min_q, min_l, max_snp_edist, "filtered_"+bam)
+    run_cmd_in_shell(cmd)
 
-def batch_bam_filter(args):
+def batch_bam_filter(bams, min_q, min_l, max_snp_edist, nproc):
     """
     Parallelize single_bam_filter()
     """
 
-    bams = subprocess.getoutput("ls *.bam").split('\n')
-    mq_lst = [args.minimum_quality] * len(bams)
-    ml_lst = [args.minimum_length] * len(bams)
-    m_snp = [args.max_snps] * len(bams)
+    mq_lst = [min_q] * len(bams)
+    ml_lst = [min_l] * len(bams)
+    m_snp_edist_lst = [max_snp_edist] * len(bams)
 
-    multi_map(args.processor, single_bam_filter, zip(bams, mq_lst, ml_lst, m_snp))
+    multi_map(nproc, single_bam_filter, zip(bams, mq_lst, ml_lst, m_snp_edist_lst))
 
-def single_consensus_builder(multi_args):
+def single_consensus_builder(filtered_bam, min_c, t_dist, domi_ale_frq):
     """
     Args: a filtered bam coupled with parameters for QC
+          filtered_bam: A filtered bam file output from batch_bam_filter()
+          min_c: a tunable parameter for minimum coverage
+          t_dist: a tunable parameter for trimming distance
+          domi_ale_frq: a tunable parameter for dominant allele frequency 
+
+
     return: consensus sequences in a fasta file
     """
-
-    f_bam, mc, trim_end, domall = multi_args
     consensus_path = os.path.dirname(__file__)+"/cmseq/consensus.py"
-
+    opt = f_bam.split(".")[0]+'_consensus.fna'
     if trim_end != None:
 
-        cmd = "python3 {} {} --sortindex --mincov {} --trim {} --dominant_frq_thrsh {} > {}".format(consensus_path, f_bam, mc, trim_end, domall, f_bam.split(".")[0]+'_consensus.fna')
-        subprocess.call(cmd, shell = True)
+        cmd = "python3 {} {} --sortindex --mincov {} --trim {} --dominant_frq_thrsh {} > {}".format(consensus_path, filtered_bam, min_c, t_dist, domi_ale_frq, opt)
+        run_cmd_in_shell(cmd)
     else:
-        cmd = "python3 {} {} --sortindex --mincov {} --dominant_frq_thrsh {} > {}".format(consensus_path, f_bam, mc, domall, f_bam.split(".")[0]+'_consensus.fna')
-        subprocess.call(cmd, shell = True)
+        cmd = "python3 {} {} --sortindex --mincov {} --dominant_frq_thrsh {} > {}".format(consensus_path, filtered_bam, min_c, domi_ale_frq, opt)
+        run_cmd_in_shell(cmd)
 
-def batch_consensus_builder(args):
+def batch_consensus_builder(filtered_bams, min_c, t_dist, domi_ale_frq, nproc):
 
     """
     Parallelize single_consensus_builder()
     """
 
-    f_bams = subprocess.getoutput("ls filtered_INTER_*bam").split('\n')
-    mc_lst = [args.minimum_coverage] * len(f_bams)
-    trim_lst = [args.trim_reads_end] * len(f_bams)
-    domall_lst = [args.minimum_dominant_allele] * len(f_bams)
-    multi_map(args.processor, single_consensus_builder, zip(f_bams, mc_lst, trim_lst, domall_lst))
+    mc_lst = [min_c] * len(filtered_bams)
+    trim_lst = [t_dist] * len(filtered_bams)
+    domall_lst = [domi_ale_frq] * len(filtered_bams)
+
+    multi_map(nproc, single_consensus_builder, zip(filtered_bams, mc_lst, trim_lst, domall_lst))
+
 
 def output_trimmed_reads(trim_pos, bam_file):
-
+    """
+    This feature is optional.
+    If chosen, trimmed reads extracted from filtered bams and re-direct to fastq files which
+    are stored in outputs/trimmed_reads 
+    """
     in_samfile = pysam.AlignmentFile(bam_file, 'rb')
     bam_file_opt = 'trimmed_'+'_'.join(bam_file.split('.')[0].split('_')[2:])+'.fastq'
     out_fastq = open(bam_file_opt, 'w')
@@ -218,8 +222,29 @@ def output_trimmed_reads(trim_pos, bam_file):
 
 
 ###############################################################################################################
-# So far almost all work was handled by bowtie2, blastn, and other dependencies
+# Above are all about bowtie2 process, and below are all about blastn process
 ###############################################################################################################
+
+def blast_genomes():
+
+    outfmt = '6 qaccver saccver pident length mismatch gapopen qstart qend\
+                    sstart send evalue bitscore qseq sseq'
+    cmd = "blastn -db {} -query {} -outfmt '{}' -num_threads {}\
+            -word_size 9 -out {}/INTER_blast_opt_tmp.tab".format(ref_fna, query, outfmt, threads, opt_dir)
+
+    run_cmd_in_shell(cmd)
+
+def QC_on_blastn(blast_tab, length, pid, opt_dir = os.getcwd()):
+
+    """
+    It applies QC on blast output
+    Input: 1)'INTER_blast_opt_tmp.tab', 2) length of hits, 3) identity percentage of hits
+    Program: call script 'bo6_screen.py'
+    Output: filtered blast output, 'INTER_blastn_opt_tmp_cleaned.tab' 
+    """
+
+    cmd = 'cut -f 1-14 {} | bo6_screen.py --length {} --pid {} > {}/INTER_blastn_opt_tmp_cleaned.tab'.format(blast_tab, length, pid, opt_dir)
+    subprocess.call(cmd, shell = True)
 
 
 class blastn_sort(object):
