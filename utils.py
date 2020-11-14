@@ -38,7 +38,7 @@ def multi_map(w,f,l):
 	"""
 	# This is to multiprocess command line on shell
 	pool = mp.Pool(processes = w)
-	return pool.map(f,l)
+	return pool.starmap(f,l)
 
 def multi_proc_dict(w, f, dict_lst):
 	
@@ -119,7 +119,7 @@ def homo_site_mapper(senario):
 	"""
 	It takes subject sequence and query sequence and their
 	alignment start positions, and map the postions of homologous
-	sites back to genome position.
+	sites back to genome position. Zero-based
 	"""	
 	sseq, s_start, s_end, qseq, q_start, q_end = senario
 	s_pos_lst = []
