@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 
+import json
 import sys
 import math
 import timeit
@@ -29,7 +30,6 @@ from Bio.Align import MultipleSeqAlignment
 
 def main():
     # parse parameters
-    pass
     parser = argparse.ArgumentParser(description = 'Reconstruct whole-genome-level MSA from large-scale datasets.')
     parser.add_argument('reference', help='Input reference genome sequence in the fasta format.')
     parser.add_argument('config_file', help='Input the configuration file.')
@@ -78,59 +78,17 @@ def main():
     # get the folder of genome assemblies
     opt_dir = create_folder(args.output_dir)
 
-    
-    params = [
-      {
-       'mode': 'reads',
-       'ref_genome': ref_genome,
-       'db_dir': Inters,
-       'age_type': '1',
-       'param_set': {
-         'm_mode': '-k,1',
-         'thread': 15,
-         'min_q': 30, 
-         'min_l': 30,
-         'max_snp_edist': 0.04, 
-         'nproc': 3,
-         'min_c': 30,
-         't_dist': '5:5',
-         'domi_ale_frq': 0.8,
-         'opt_tr_reads': 0, # If it is not 0, output trimmed reads in output/trimmed_reads
-         'sample_list': a_samples,
-       },
-      },
-      {
-       'mode': 'reads',
-       'ref_genome': ref_genome,
-       'db_dir': Inters,
-       'age_type': '2',
-       'param_set': {
-         'm_mode': '-k,1',
-         'thread': 15,
-         'min_q': 30, 
-         'min_l': 30,
-         'max_snp_edist': 0.04, 
-         'nproc': 3,
-         'min_c': 30,
-         'domi_ale_frq': 0.8,
-         'sample_list': m_samples,
-       },
-      },
-      {
-        'mode': 'contigs',
-        'ref_genome': ref_genome,
-        'db_dir': Inters,
-        'param_set' : {
-          'b_len': '500',
-          'b_iden': '95',
-          'b_threads': '10',
-          'sample_list': genomes,
-        },
-      },
-    ]
+    configs_list = []
+
+    try:
+        with open('configs.json', 'r') as config_file:
+            configs_list = json.loads(config_file)
+    except Exception as e:
+        print(e)
+
     inter_results = []
     # deal with working directory
-    for configs in params:
+    for configs in configs_list:
         dest = workflow(configs)
         inter_results.extend(dest)
 
@@ -191,7 +149,7 @@ def build_mapping(db_dest, **kwargs):
     opt_all_files = []
     if mode == 'reads':
         age_type = kwargs['age_type']
-        if (age_type == '1') and param_set['sample_list']:
+        if (age_type == 1) and param_set['sample_list']:
             # Using ancient-specific param_set
             bam_files = bwt2_batch_mapping(param_set['sample_list'], db_dest, param_set['thread'], param_set['m_mode'], param_set['nproc']) # parameters specific to mapping ancient samples
             print('bam_files result: \n', bam_files)
@@ -202,7 +160,7 @@ def build_mapping(db_dest, **kwargs):
             opt_all_files.extend(opt_files)
 
 
-        elif (age_type == '2') and param_set['sample_list']:
+        elif (age_type == 2) and param_set['sample_list']:
             # Using modern-specific param_set
             bam_files = bwt2_batch_mapping(param_set['sample_list'], db_dest, param_set['thread'], param_set['m_mode'], param_set['nproc']) # parameters specific to mapping ancient samples
             print('bam_files result: \n', bam_files)
