@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 
+import json
 import sys
 import math
 import timeit
@@ -29,10 +30,13 @@ from Bio.Align import MultipleSeqAlignment
 
 def main():
     # parse parameters
-    pass
     parser = argparse.ArgumentParser(description = 'Reconstruct whole-genome-level MSA from large-scale datasets.')
-    parser.add_argument('reference', help='Input reference genome sequence in the fasta format.')
     parser.add_argument('config_file', help='Input the configuration file.')
+    parser.add_argument('-r',
+                        '--reference',
+                        help='Input reference genome sequence in the fasta format.',
+                        type = str,
+                        default = None)
     parser.add_argument('-a',
                         '--ancient_metagenomes',
                         help = 'An ancient-metagenome folder containing sub-folders, each sub-folder \
@@ -58,86 +62,84 @@ def main():
 
     args = parser.parse_args()
     
-    Inters = create_folder('Intermediates') # Create a folder for storing intermediate files
-    ref_genome = abspath_finder(args.reference) # get the abs path of refseq
 
-    if args.ancient_metagenomes:
-        a_samples = [abspath_finder(args.ancient_metagenomes+ '/' + i) for i in subprocess.getoutput('ls {}/'.format(abspath_finder(args.ancient_metagenomes))).split('\n') if args.ancient_metagenomes]
+    try:
+        with open(args.config_file, 'r') as config_file:
+            configs_list = json.loads(config_file.read())
+    except Exception as e:
+        print(e) 
+
+    Inters = create_folder('Intermediates') # Create a folder for storing intermediate files
+    
+    configs_list[0]['db_dir'] = Inters
+    configs_list[1]['db_dir'] = Inters
+    configs_list[2]['db_dir'] = Inters
+
+    if args.reference:
+        ref_genome = abspath_finder(args.reference) # get the abs path of refseq
+        configs_list[0]["ref_genome"] = ref_genome
+        configs_list[1]["ref_genome"] = ref_genome
+        configs_list[2]["ref_genome"] = ref_genome
     else:
+        pass
+    if args.ancient_metagenomes:
+        # a_samples = [abspath_finder(args.ancient_metagenomes+ '/' + i) for i in subprocess.getoutput('ls {}/'.format(abspath_finder(args.ancient_metagenomes))).split('\n') if args.ancient_metagenomes]
+        a_samples = obtain_samples(args.ancient_metagenomes)
+        configs_list[0]['param_set']['sample_list'] = a_samples
+    elif len(configs_list[0]['param_set']['sample_list']) != 0:
+        a_samples = obtain_samples(configs_list[0]['param_set']['sample_list'])
+        configs_list[0]['param_set']['sample_list'] = a_samples
+    else:   
         a_samples = None
     # get all ancient metagenome samples in abs path
     if args.modern_metagenomes:
-        m_samples = [abspath_finder(args.modern_metagenomes+ '/' + i) for i in subprocess.getoutput('ls {}/'.format(abspath_finder(args.modern_metagenomes))).split('\n') if args.modern_metagenomes ]
+        # m_samples = [abspath_finder(args.modern_metagenomes+ '/' + i) for i in subprocess.getoutput('ls {}/'.format(abspath_finder(args.modern_metagenomes))).split('\n') if args.modern_metagenomes ]
+        m_samples = obtain_samples(args.modern_metagenomes)
+        configs_list[1]['param_set']['sample_list'] = m_samples
+    elif len(configs_list[1]['param_set']['sample_list']) != 0:
+        m_samples = obtain_samples(configs_list[1]['param_set']['sample_list'])
+        configs_list[1]['param_set']['sample_list'] = m_samples   
     else:
         m_samples = None
     # get all modern metagenome samples in abs path
     if args.genome_assemlies:
         genomes = abspath_finder(args.genome_assemlies)
+        configs_list[2]['param_set']['sample_list'] = genomes
     else:
         genomes = None
     # get the folder of genome assemblies
     opt_dir = create_folder(args.output_dir)
 
-    
-    params = [
-      {
-       'mode': 'reads',
-       'ref_genome': ref_genome,
-       'db_dir': Inters,
-       'age_type': '1',
-       'param_set': {
-         'm_mode': '-k,1',
-         'thread': 15,
-         'min_q': 30, 
-         'min_l': 30,
-         'max_snp_edist': 0.04, 
-         'nproc': 3,
-         'min_c': 30,
-         't_dist': '5:5',
-         'domi_ale_frq': 0.8,
-         'opt_tr_reads': 0, # If it is not 0, output trimmed reads in output/trimmed_reads
-         'sample_list': a_samples,
-       },
-      },
-      {
-       'mode': 'reads',
-       'ref_genome': ref_genome,
-       'db_dir': Inters,
-       'age_type': '2',
-       'param_set': {
-         'm_mode': '-k,1',
-         'thread': 15,
-         'min_q': 30, 
-         'min_l': 30,
-         'max_snp_edist': 0.04, 
-         'nproc': 3,
-         'min_c': 30,
-         'domi_ale_frq': 0.8,
-         'sample_list': m_samples,
-       },
-      },
-      {
-        'mode': 'contigs',
-        'ref_genome': ref_genome,
-        'db_dir': Inters,
-        'param_set' : {
-          'b_len': '500',
-          'b_iden': '95',
-          'b_threads': '10',
-          'sample_list': genomes,
-        },
-      },
-    ]
-    inter_results = []
-    # deal with working directory
-    for configs in params:
-        dest = workflow(configs)
-        inter_results.extend(dest)
+    print(configs_list)
 
 
-    # merge fiiles in inter_results
-    output_file = opt_dir + '/Mac_genome_MSA.fna'
-    merge_all(inter_results, ref_genome, output_file)
+# Write a function to translate folder path to a list of sample paths.
+
+    # inter_results = []
+    # # deal with working directory
+    # for configs in configs_list:
+    #     dest = workflow(configs)
+    #     inter_results.extend(dest)
+
+
+    # # merge fiiles in inter_results
+    # output_file = opt_dir + '/Mac_genome_MSA.fna'
+    # merge_all(inter_results, ref_genome, output_file)
+
+def obtain_samples(folder_path):
+
+    """
+    It takes abs path of an input folder,
+    and return a list of abs paths of sub-folders
+    """
+    sample_list = []
+
+    for i in subprocess.getoutput('ls {}/'.format(abspath_finder(folder_path))).split('\n'):
+        single_sample_path = abspath_finder(folder_path + '/' + i)
+        sample_list.append(single_sample_path)
+
+    return sample_list 
+
 
 
 def workflow(configs):
@@ -191,7 +193,7 @@ def build_mapping(db_dest, **kwargs):
     opt_all_files = []
     if mode == 'reads':
         age_type = kwargs['age_type']
-        if (age_type == '1') and param_set['sample_list']:
+        if (age_type == 1) and param_set['sample_list']:
             # Using ancient-specific param_set
             bam_files = bwt2_batch_mapping(param_set['sample_list'], db_dest, param_set['thread'], param_set['m_mode'], param_set['nproc']) # parameters specific to mapping ancient samples
             print('bam_files result: \n', bam_files)
@@ -202,7 +204,7 @@ def build_mapping(db_dest, **kwargs):
             opt_all_files.extend(opt_files)
 
 
-        elif (age_type == '2') and param_set['sample_list']:
+        elif (age_type == 2) and param_set['sample_list']:
             # Using modern-specific param_set
             bam_files = bwt2_batch_mapping(param_set['sample_list'], db_dest, param_set['thread'], param_set['m_mode'], param_set['nproc']) # parameters specific to mapping ancient samples
             print('bam_files result: \n', bam_files)
