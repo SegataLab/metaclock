@@ -110,6 +110,7 @@ def main():
     # get the folder of genome assemblies
     opt_dir = create_folder(args.output_dir)
 
+<<<<<<< HEAD
     print(configs_list)
 
 
@@ -140,6 +141,26 @@ def obtain_samples(folder_path):
 
     return sample_list 
 
+=======
+    configs_list = []
+
+    try:
+        with open('configs.json', 'r') as config_file:
+            configs_list = json.loads(config_file)
+    except Exception as e:
+        print(e)
+
+    inter_results = []
+    # deal with working directory
+    for configs in configs_list:
+        dest = workflow(configs)
+        inter_results.extend(dest)
+
+
+    # merge fiiles in inter_results
+    output_file = opt_dir + '/Mac_genome_MSA.fna'
+    merge_all(inter_results, ref_genome, output_file)
+>>>>>>> a8fcd22aa2775c13281f721b22305750d3beb2c5
 
 
 def workflow(configs):
