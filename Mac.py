@@ -62,7 +62,9 @@ def main():
 
     args = parser.parse_args()
     
-
+    """
+    Loading config file
+    """
     try:
         with open(args.config_file, 'r') as config_file:
             configs_list = json.loads(config_file.read())
@@ -71,32 +73,62 @@ def main():
 
     Inters = create_folder('Intermediates') # Create a folder for storing intermediate files
     
-    configs_list[0]['db_dir'] = Inters
-    configs_list[1]['db_dir'] = Inters
-    configs_list[2]['db_dir'] = Inters
+    configs_list[0]['db_dir'] = Inters # Add abs path of Intermediate folder to anciet sample processing job
+    configs_list[1]['db_dir'] = Inters # Add abs path of Intermediate folder to modern sample processing job
+    configs_list[2]['db_dir'] = Inters # Add abs path of Intermediate folder to genomes processing job
 
     if args.reference:
+        """
+        If reference is given by command, overwrite config file with updated data from cmd
+        """
         ref_genome = abspath_finder(args.reference) # get the abs path of refseq
-        configs_list[0]["ref_genome"] = ref_genome
-        configs_list[1]["ref_genome"] = ref_genome
-        configs_list[2]["ref_genome"] = ref_genome
+        configs_list[0]["ref_genome"] = ref_genome # Add abs path of reference to anciet sample processing job
+        configs_list[1]["ref_genome"] = ref_genome # Add abs path of reference to modern sample processing job
+        configs_list[2]["ref_genome"] = ref_genome # Add abs path of  reference to genomes processing job
     else:
+        """
+        Else, pass and using original info from config file
+        """
         pass
+
     if args.ancient_metagenomes:
+        """
+        If path of ancient samples is given by cmd, it obtains all samples' abs paths from parsed args and store them in a list,
+        and overwrites config with a list of sample paths.
+        """
         a_samples = obtain_samples(args.ancient_metagenomes)
         configs_list[0]['param_set']['sample_list'] = a_samples
     elif len(configs_list[0]['param_set']['sample_list']) != 0:
+        """
+        If the path is given by config file, it obtains all samples' abs paths from path written in config file and store them in a list,
+        and overwrites config with a list of sample paths   
+        """
+
         a_samples = obtain_samples(configs_list[0]['param_set']['sample_list'])
         configs_list[0]['param_set']['sample_list'] = a_samples
-    else:   
+    else:
+        """
+        Else, assign None value to sample_list
+        """
         a_samples = None
-    # get all ancient metagenome samples in abs path
+
     if args.modern_metagenomes:
+        """
+        If path of modern samples is given by cmd, it obtains all samples' abs paths from parsed args and store them in a list,
+        and overwrites config with a list of sample paths.
+        """
+
         m_samples = obtain_samples(args.modern_metagenomes)
         configs_list[1]['param_set']['sample_list'] = m_samples
     elif len(configs_list[1]['param_set']['sample_list']) != 0:
+        """
+        If the path is given by config file, it obtains all samples' abs paths from path written in config file and store them in a list,
+        and overwrites config with a list of sample paths   
+        """
+
         m_samples = obtain_samples(configs_list[1]['param_set']['sample_list'])
         configs_list[1]['param_set']['sample_list'] = m_samples   
+
     else:
         m_samples = None
     # get all modern metagenome samples in abs path
