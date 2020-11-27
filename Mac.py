@@ -181,7 +181,6 @@ def main():
     
     opt_dir = create_folder(args.output_dir)
 
-    print(configs_list)
 
     inter_results = []
     for configs in configs_list:
@@ -269,8 +268,9 @@ def build_mapping(db_dest, **kwargs):
             opt_all_files.extend(opt_files)
             if param_set['opt_tr_reads'] == 1:
                 for bam in filtered_bams:
-                    output_trimmed_reads(param_set['t_dist'], bam)
-
+                    sorted_bam = bam + '.sorted'
+                    print("Output trimmed reads from {}\n".format(sorted_bam))
+                    output_trimmed_reads(param_set['t_dist'], sorted_bam)
             else:
                 pass
 
@@ -344,7 +344,7 @@ def bwt2_batch_mapping(sample_list, db_dest, threads, m_mode, processors):
 
 def run_cmd_in_shell(cmd):
     print('running command: ', cmd)
-    subprocess.call(cmd, shell=True)
+    subprocess.call(cmd, shell=True)  
 
 
 def detect_reads_suffix(reads_foler):
@@ -432,7 +432,7 @@ def output_trimmed_reads(trim_pos, bam_file):
 
     in_samfile = pysam.AlignmentFile(bam_file, 'rb')
     
-    reads_opt = bam_file.replace('.bam', '.fastq')
+    reads_opt = bam_file.replace('.bam.sorted', '.fastq')
 
     out_fastq = open(reads_opt, 'w')
 
