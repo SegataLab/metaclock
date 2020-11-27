@@ -37,28 +37,33 @@ def main():
                         help='Input reference genome sequence in the fasta format.',
                         type = str,
                         default = None)
-    parser.add_argument('-a',
+    parser.add_argument('-a_ipt',
                         '--ancient_metagenomes',
-                        help = 'An ancient-metagenome folder containing sub-folders, each sub-folder \
+                        help = 'Input an ancient-metagenome folder containing sub-folders, each sub-folder \
                         contains sequencing reads from one ancient sample. [Support suffix of .fastq/.fastq.gz/.fastq.bz2]',
                         type = str,
                         default = None)
-    parser.add_argument('-m',
+    parser.add_argument('-m_ipt',
                         '--modern_metagenomes',
-                        help = 'A modern-metagenome folder containing sub-folders, each sub-folder \
+                        help = 'Input a modern-metagenome folder containing sub-folders, each sub-folder \
                         contains sequencing reads from one modern sample. [Support suffix of .fastq/.fastq.gz/.fastq.bz2]',
                         type = str,
                         default = None)
-    parser.add_argument('-g',
+    parser.add_argument('-g_ipt',
                         '--genome_assemlies',
-                        help = 'A genome-assemblies folder containing assembled genomes, each assembled \
+                        help = 'Input a genome-assemblies folder containing assembled genomes, each assembled \
                         genome is stored in a fasta file. [Support FASTA format]',
                         type = str,
                         default = None)
     parser.add_argument('-o',
                         '--output_dir',
-                        help = 'A folder for storing outputs.',
+                        help = 'Specify an output folder for storing results. Default: [Mac_output] in the working directory.',
                         default = 'Mac_output')
+
+    parser.add_argument('-int',
+                        '--intermediate_dir',
+                        help = 'Specify an intermediate folder for storing intermediate files. Default: [intermediates] in the working directory.',
+                        default = None)
 
     args = parser.parse_args()
     
@@ -71,25 +76,49 @@ def main():
     except Exception as e:
         print(e) 
 
-    Inters = create_folder('Intermediates') # Create a folder for storing intermediate files
+
+    if args.intermediate_dir:
+        """
+        Check if intermediate path is given by cmd, use this path if yes
+        """
+        Inters = create_folder(args.intermediate_dir) # Create a folder for storing intermediate files
     
-    configs_list[0]['db_dir'] = Inters # Add abs path of Intermediate folder to anciet sample processing job
-    configs_list[1]['db_dir'] = Inters # Add abs path of Intermediate folder to modern sample processing job
-    configs_list[2]['db_dir'] = Inters # Add abs path of Intermediate folder to genomes processing job
+    elif (len(configs_list[0]['db_dir']) != 0) & (len(configs_list[1]['db_dir']) != 0) & (len(configs_list[2]['db_dir']) != 0):
+        """
+        If intermediate path is not given by cmd, then check if it is in config file
+        Use it if yes
+        """
+        Inters = create_folder(configs_list[0]['db_dir'])
+
+    else:
+        """
+        If none of both above is true, create a folder called 'intermediates' in the working diretory by default.
+        """
+        Inters = create_folder('intermediates')
+
+    configs_list[0]['db_dir'] = Inters # Add abs path of intermediate folder to anciet sample processing job
+    configs_list[1]['db_dir'] = Inters # Add abs path of intermediate folder to modern sample processing job
+    configs_list[2]['db_dir'] = Inters # Add abs path of intermediate folder to genomes processing job
+
 
     if args.reference:
         """
         If reference is given by command, overwrite config file with updated data from cmd
         """
         ref_genome = abspath_finder(args.reference) # get the abs path of refseq
-        configs_list[0]["ref_genome"] = ref_genome # Add abs path of reference to anciet sample processing job
-        configs_list[1]["ref_genome"] = ref_genome # Add abs path of reference to modern sample processing job
-        configs_list[2]["ref_genome"] = ref_genome # Add abs path of  reference to genomes processing job
+
+    elif (len(configs_list[0]['ref_genome']) != 0) & (len(configs_list[1]['ref_genome']) != 0) & (len(configs_list[2]['ref_genome']) != 0):
+        """
+        If reference is given by config, use it if yes
+        """
+        ref_genome = abspath_finder(configs_list[0]['ref_genome'])
     else:
-        """
-        Else, pass and using original info from config file
-        """
-        pass
+        sys.exit("Please input a reference genome in fasta format!")
+    
+    configs_list[0]["ref_genome"] = ref_genome # Add abs path of reference to anciet sample processing job
+    configs_list[1]["ref_genome"] = ref_genome # Add abs path of reference to modern sample processing job
+    configs_list[2]["ref_genome"] = ref_genome # Add abs path of  reference to genomes processing job
+
 
     if args.ancient_metagenomes:
         """
@@ -97,7 +126,7 @@ def main():
         and overwrites config with a list of sample paths.
         """
         a_samples = obtain_samples(args.ancient_metagenomes)
-        configs_list[0]['param_set']['sample_list'] = a_samples
+
     elif len(configs_list[0]['param_set']['sample_list']) != 0:
         """
         If the path is given by config file, it obtains all samples' abs paths from path written in config file and store them in a list,
@@ -105,12 +134,14 @@ def main():
         """
 
         a_samples = obtain_samples(configs_list[0]['param_set']['sample_list'])
-        configs_list[0]['param_set']['sample_list'] = a_samples
+
     else:
         """
         Else, assign None value to sample_list
         """
         a_samples = None
+
+    configs_list[0]['param_set']['sample_list'] = a_samples
 
     if args.modern_metagenomes:
         """
@@ -119,7 +150,6 @@ def main():
         """
 
         m_samples = obtain_samples(args.modern_metagenomes)
-        configs_list[1]['param_set']['sample_list'] = m_samples
     elif len(configs_list[1]['param_set']['sample_list']) != 0:
         """
         If the path is given by config file, it obtains all samples' abs paths from path written in config file and store them in a list,
@@ -127,29 +157,38 @@ def main():
         """
 
         m_samples = obtain_samples(configs_list[1]['param_set']['sample_list'])
-        configs_list[1]['param_set']['sample_list'] = m_samples   
 
     else:
         m_samples = None
+    
+    configs_list[1]['param_set']['sample_list'] = m_samples
+
+
+
     # get all modern metagenome samples in abs path
     if args.genome_assemlies:
         genomes = abspath_finder(args.genome_assemlies)
-        configs_list[2]['param_set']['sample_list'] = genomes
+
+    elif len(configs_list[2]['param_set']['sample_list']) != 0:
+        genomes = abspath_finder(configs_list[2]['param_set']['sample_list'])
+
     else:
         genomes = None
+
+    configs_list[2]['param_set']['sample_list'] = genomes
+
     # get the folder of genome assemblies
     
     opt_dir = create_folder(args.output_dir)
 
+    print(configs_list)
 
     inter_results = []
-    # deal with working directory
     for configs in configs_list:
         dest = workflow(configs)
         inter_results.extend(dest)
 
 
-    # merge fiiles in inter_results
     output_file = opt_dir + '/Mac_genome_MSA.fna'
     merge_all(inter_results, ref_genome, output_file)
 
@@ -228,6 +267,12 @@ def build_mapping(db_dest, **kwargs):
             opt_files = batch_consensus_builder(filtered_bams, param_set['min_c'], param_set['t_dist'], param_set['domi_ale_frq'], param_set['nproc'])
             print('reconstructed fasta files result: \n', opt_files)
             opt_all_files.extend(opt_files)
+            if param_set['opt_tr_reads'] == 1:
+                for bam in filtered_bams:
+                    output_trimmed_reads(param_set['t_dist'], bam)
+
+            else:
+                pass
 
 
         elif (age_type == 2) and param_set['sample_list']:
@@ -378,42 +423,43 @@ def batch_consensus_builder(filtered_bams, min_c, t_dist, domi_ale_frq, processo
     return multi_map(processors, single_consensus_builder, params)
 
 
-# # def output_trimmed_reads(trim_pos, bam_file):
-# #     """
-# #     This feature is optional.
-# #     If chosen, trimmed reads extracted from filtered bams and re-direct to fastq files which
-# #     are stored in outputs/trimmed_reads 
-# #     """
-# #     in_samfile = pysam.AlignmentFile(bam_file, 'rb')
-# #     bam_file_opt = 'trimmed_'+'_'.join(bam_file.split('.')[0].split('_')[2:])+'.fastq'
-# #     out_fastq = open(bam_file_opt, 'w')
-# #     left, right = trim_pos.split(':')
-# #     for read in in_samfile.fetch():
-# #         if read.is_reverse:
-# #             read_name = read.query_name
-# #             read_seq = str(Seq(read.query_alignment_sequence[int(left): -int(right)], generic_dna)\
-# #                 .reverse_complement())
-# #             read_qual = read.qual[int(left): -int(right)][::-1]
+def output_trimmed_reads(trim_pos, bam_file):
+    """
+    This feature is optional.
+    If chosen, trimmed reads extracted from filtered bams and re-direct to fastq files which
+    are stored in outputs/trimmed_reads 
+    """
 
-# #             out_fastq.write('@'+read_name+'\n')
-# #             out_fastq.write(read_seq+'\n')
-# #             out_fastq.write("+\n")
-# #             out_fastq.write(read_qual+'\n')
-# #         else:
-# #             read_name = read.query_name
-# #             read_seq = str(Seq(read.query_alignment_sequence[int(left): -int(right)], generic_dna))
-# #             read_qual = read.qual[int(left): -int(right)]
+    in_samfile = pysam.AlignmentFile(bam_file, 'rb')
+    
+    reads_opt = bam_file.replace('.bam', '.fastq')
 
-# #             out_fastq.write('@'+read_name+'\n')
-# #             out_fastq.write(read_seq+'\n')
-# #             out_fastq.write("+\n")
-# #             out_fastq.write(read_qual+'\n')
-# #     out_fastq.close()
+    out_fastq = open(reads_opt, 'w')
 
+    left, right = trim_pos.split(':')
 
-# ###############################################################################################################
-# # Above are all about bowtie2 process, and below are all about blastn process
-# ###############################################################################################################
+    for read in in_samfile.fetch():
+        if read.is_reverse:
+            read_name = read.query_name
+            read_seq = str(Seq(read.query_alignment_sequence[int(left): -int(right)], generic_dna)\
+                .reverse_complement())
+            read_qual = read.qual[int(left): -int(right)][::-1]
+
+            out_fastq.write('@'+read_name+'\n')
+            out_fastq.write(read_seq+'\n')
+            out_fastq.write("+\n")
+            out_fastq.write(read_qual+'\n')
+        else:
+            read_name = read.query_name
+            read_seq = str(Seq(read.query_alignment_sequence[int(left): -int(right)], generic_dna))
+            read_qual = read.qual[int(left): -int(right)]
+
+            out_fastq.write('@'+read_name+'\n')
+            out_fastq.write(read_seq+'\n')
+            out_fastq.write("+\n")
+            out_fastq.write(read_qual+'\n')
+    out_fastq.close()
+
 
 def generate_query_set_and_mp_file(output_dir, contigs_folder):
     
