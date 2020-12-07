@@ -1,3 +1,4 @@
+mode,input_type
 ref_genome,reference_genome
 m_mode,search_report_mode
 thread,bowtie2_threads
