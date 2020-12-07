@@ -1,6 +1,6 @@
 [
   {
-    "mode":"reads",
+    "input_type":"reads",
     "reference_genome":"",
     "age_type":1,
     "intermediate":"",
@@ -19,7 +19,7 @@
     }
   },
   {
-    "mode":"reads",
+    "input_type":"reads",
     "reference_genome":"",
     "age_type":2,
     "intermediate":"",
@@ -28,7 +28,7 @@
       "bowtie2_threads":15,
       "minimum_mapping_quality":30,
       "minimum_mapping_length":30,
-      "maximum_snp_editrim_distanceance":0.04,
+      "maximum_snp_edit_distance":0.04,
       "nproc":3,
       "minimum_coverage":30,
       "dominant_allele_frequency":0.8,
@@ -36,13 +36,13 @@
     }
   },
   {
-    "mode":"contigs",
+    "input_type":"contigs",
     "reference_genome":"",
     "intermediate":"",
     "parameter_set":{
       "homolog_length":500,
-      "homolog_length":95,
-      "homolog_identity":10,
+      "homolog_identity":95,
+      "blastn_threads":10,
       "samples":""
     }
   }
