@@ -24,6 +24,7 @@ from utils import out_stats
 from utils import ancient_sample_tailor
 from utils import distribution
 from utils import Barplot
+from utils import out_stats
 from AlignStats import AlignStats
 from Bio import AlignIO
 from Bio.Align import MultipleSeqAlignment
@@ -83,12 +84,12 @@ def main():
         """
         Inters = create_folder(args.intermediate_dir) # Create a folder for storing intermediate files
     
-    elif (len(configs_list[0]['db_dir']) != 0) & (len(configs_list[1]['db_dir']) != 0) & (len(configs_list[2]['db_dir']) != 0):
+    elif (len(configs_list[0]['intermediate']) != 0) & (len(configs_list[1]['intermediate']) != 0) & (len(configs_list[2]['intermediate']) != 0):
         """
         If intermediate path is not given by cmd, then check if it is in config file
         Use it if yes
         """
-        Inters = create_folder(configs_list[0]['db_dir'])
+        Inters = create_folder(configs_list[0]['intermediate'])
 
     else:
         """
@@ -96,9 +97,9 @@ def main():
         """
         Inters = create_folder('intermediates')
 
-    configs_list[0]['db_dir'] = Inters # Add abs path of intermediate folder to anciet sample processing job
-    configs_list[1]['db_dir'] = Inters # Add abs path of intermediate folder to modern sample processing job
-    configs_list[2]['db_dir'] = Inters # Add abs path of intermediate folder to genomes processing job
+    configs_list[0]['intermediate'] = Inters # Add abs path of intermediate folder to anciet sample processing job
+    configs_list[1]['intermediate'] = Inters # Add abs path of intermediate folder to modern sample processing job
+    configs_list[2]['intermediate'] = Inters # Add abs path of intermediate folder to genomes processing job
 
 
     if args.reference:
@@ -107,17 +108,17 @@ def main():
         """
         ref_genome = abspath_finder(args.reference) # get the abs path of refseq
 
-    elif (len(configs_list[0]['ref_genome']) != 0) & (len(configs_list[1]['ref_genome']) != 0) & (len(configs_list[2]['ref_genome']) != 0):
+    elif (len(configs_list[0]['reference_genome']) != 0) & (len(configs_list[1]['reference_genome']) != 0) & (len(configs_list[2]['reference_genome']) != 0):
         """
         If reference is given by config, use it if yes
         """
-        ref_genome = abspath_finder(configs_list[0]['ref_genome'])
+        ref_genome = abspath_finder(configs_list[0]['reference_genome'])
     else:
         sys.exit("Please input a reference genome in fasta format!")
     
-    configs_list[0]["ref_genome"] = ref_genome # Add abs path of reference to anciet sample processing job
-    configs_list[1]["ref_genome"] = ref_genome # Add abs path of reference to modern sample processing job
-    configs_list[2]["ref_genome"] = ref_genome # Add abs path of  reference to genomes processing job
+    configs_list[0]["reference_genome"] = ref_genome # Add abs path of reference to anciet sample processing job
+    configs_list[1]["reference_genome"] = ref_genome # Add abs path of reference to modern sample processing job
+    configs_list[2]["reference_genome"] = ref_genome # Add abs path of  reference to genomes processing job
 
 
     if args.ancient_metagenomes:
@@ -127,13 +128,13 @@ def main():
         """
         a_samples = obtain_samples(args.ancient_metagenomes)
 
-    elif len(configs_list[0]['param_set']['sample_list']) != 0:
+    elif len(configs_list[0]['parameter_set']['samples']) != 0:
         """
         If the path is given by config file, it obtains all samples' abs paths from path written in config file and store them in a list,
         and overwrites config with a list of sample paths   
         """
 
-        a_samples = obtain_samples(configs_list[0]['param_set']['sample_list'])
+        a_samples = obtain_samples(configs_list[0]['parameter_set']['samples'])
 
     else:
         """
@@ -141,7 +142,7 @@ def main():
         """
         a_samples = None
 
-    configs_list[0]['param_set']['sample_list'] = a_samples
+    configs_list[0]['parameter_set']['samples'] = a_samples
 
     if args.modern_metagenomes:
         """
@@ -150,18 +151,18 @@ def main():
         """
 
         m_samples = obtain_samples(args.modern_metagenomes)
-    elif len(configs_list[1]['param_set']['sample_list']) != 0:
+    elif len(configs_list[1]['parameter_set']['samples']) != 0:
         """
         If the path is given by config file, it obtains all samples' abs paths from path written in config file and store them in a list,
         and overwrites config with a list of sample paths   
         """
 
-        m_samples = obtain_samples(configs_list[1]['param_set']['sample_list'])
+        m_samples = obtain_samples(configs_list[1]['parameter_set']['samples'])
 
     else:
         m_samples = None
     
-    configs_list[1]['param_set']['sample_list'] = m_samples
+    configs_list[1]['parameter_set']['samples'] = m_samples
 
 
 
@@ -169,13 +170,13 @@ def main():
     if args.genome_assemlies:
         genomes = abspath_finder(args.genome_assemlies)
 
-    elif len(configs_list[2]['param_set']['sample_list']) != 0:
-        genomes = abspath_finder(configs_list[2]['param_set']['sample_list'])
+    elif len(configs_list[2]['parameter_set']['samples']) != 0:
+        genomes = abspath_finder(configs_list[2]['parameter_set']['samples'])
 
     else:
         genomes = None
 
-    configs_list[2]['param_set']['sample_list'] = genomes
+    configs_list[2]['parameter_set']['samples'] = genomes
 
     # get the folder of genome assemblies
     
@@ -189,7 +190,8 @@ def main():
 
 
     output_file = opt_dir + '/Mac_genome_MSA.fna'
-    merge_all(inter_results, ref_genome, output_file)
+    Mac_final = merge_all(inter_results, ref_genome, output_file)
+    out_stats(Mac_final, opt_dir)
 
 def obtain_samples(folder_path):
 
@@ -207,9 +209,9 @@ def obtain_samples(folder_path):
 
 
 def workflow(configs):
-    mode = configs['mode']
+    mode = configs['input_type']
     # build database
-    db_dest = build_db_file(mode, configs['ref_genome'], configs['db_dir'], configs['param_set']['sample_list'])
+    db_dest = build_db_file(mode, configs['reference_genome'], configs['intermediate'], configs['parameter_set']['samples'])
     print(db_dest)
     # build mapping with database files
     reconstructed_genome = build_mapping(db_dest, **configs)
@@ -252,54 +254,54 @@ def build_db_file(mode, ref_genome, db_dir, samples):
 
 
 def build_mapping(db_dest, **kwargs):
-    mode = kwargs['mode']
-    param_set = kwargs['param_set']
+    mode = kwargs['input_type']
+    param_set = kwargs['parameter_set']
     opt_all_files = []
     if mode == 'reads':
         age_type = kwargs['age_type']
-        if (age_type == 1) and param_set['sample_list']:
+        if (age_type == 1) and param_set['samples']:
             # Using ancient-specific param_set
-            bam_files = bwt2_batch_mapping(param_set['sample_list'], db_dest, param_set['thread'], param_set['m_mode'], param_set['nproc']) # parameters specific to mapping ancient samples
+            bam_files = bwt2_batch_mapping(param_set['samples'], db_dest, param_set['bowtie2_threads'], param_set['search_report_mode'], param_set['nproc']) # parameters specific to mapping ancient samples
             print('bam_files result: \n', bam_files)
-            filtered_bams = batch_bam_filter(bam_files, param_set['min_q'], param_set['min_l'], param_set['max_snp_edist'], param_set['nproc'])
+            filtered_bams = batch_bam_filter(bam_files, param_set['minimum_mapping_quality'], param_set['minimum_mapping_length'], param_set['maximum_snp_edit_distance'], param_set['nproc'])
             print('filtered bam files result: \n', filtered_bams)
-            opt_files = batch_consensus_builder(filtered_bams, param_set['min_c'], param_set['t_dist'], param_set['domi_ale_frq'], param_set['nproc'])
+            opt_files = batch_consensus_builder(filtered_bams, param_set['minimum_coverage'], param_set['trim_distance'], param_set['dominant_allele_frequency'], param_set['nproc'])
             print('reconstructed fasta files result: \n', opt_files)
             opt_all_files.extend(opt_files)
-            if param_set['opt_tr_reads'] == 1:
+            if param_set['output_trimmed_reads'] == 1:
                 for bam in filtered_bams:
                     sorted_bam = bam + '.sorted'
                     print("Output trimmed reads from {}\n".format(sorted_bam))
-                    output_trimmed_reads(param_set['t_dist'], sorted_bam)
+                    output_trimmed_reads(param_set['trim_distance'], sorted_bam)
             else:
                 pass
 
 
-        elif (age_type == 2) and param_set['sample_list']:
+        elif (age_type == 2) and param_set['samples']:
             # Using modern-specific param_set
-            bam_files = bwt2_batch_mapping(param_set['sample_list'], db_dest, param_set['thread'], param_set['m_mode'], param_set['nproc']) # parameters specific to mapping ancient samples
+            bam_files = bwt2_batch_mapping(param_set['samples'], db_dest, param_set['bowtie2_threads'], param_set['search_report_mode'], param_set['nproc']) # parameters specific to mapping ancient samples
             print('bam_files result: \n', bam_files)
-            filtered_bams = batch_bam_filter(bam_files, param_set['min_q'], param_set['min_l'], param_set['max_snp_edist'], param_set['nproc'])
+            filtered_bams = batch_bam_filter(bam_files, param_set['minimum_mapping_quality'], param_set['minimum_mapping_length'], param_set['maximum_snp_edit_distance'], param_set['nproc'])
             print('filtered bam files result: \n', filtered_bams)
-            opt_files = batch_consensus_builder(filtered_bams, param_set['min_c'], None, param_set['domi_ale_frq'], param_set['nproc'])
+            opt_files = batch_consensus_builder(filtered_bams, param_set['minimum_coverage'], None, param_set['dominant_allele_frequency'], param_set['nproc'])
             print('reconstructed fasta files result: \n', opt_files)
             opt_all_files.extend(opt_files)
  
-    elif (mode == 'contigs') and param_set['sample_list']:
+    elif (mode == 'contigs') and param_set['samples']:
         configs = kwargs
         print('Generate mp file and concatenate ..........\n')
-        ctigs_concatenated = generate_query_set_and_mp_file(configs['db_dir'], param_set['sample_list'])
+        ctigs_concatenated = generate_query_set_and_mp_file(configs['intermediate'], param_set['samples'])
         mp_file = ctigs_concatenated[0]
         query_set = ctigs_concatenated[1]
-        db_dest = configs['db_dir'] + '/'+ configs['ref_genome'].split('/')[-1]
+        db_dest = configs['intermediate'] + '/'+ configs['reference_genome'].split('/')[-1]
         print('Run blastn ........\n')
-        raw_blastn_tab = blast_genomes(configs['db_dir'], db_dest, query_set, param_set['b_threads'])
+        raw_blastn_tab = blast_genomes(configs['intermediate'], db_dest, query_set, param_set['blastn_threads'])
         print('Run blastn qc ............\n')
-        cleaned_blastn_tab = QC_on_blastn(raw_blastn_tab, param_set['b_len'], param_set['b_iden'], configs['db_dir'])
+        cleaned_blastn_tab = QC_on_blastn(raw_blastn_tab, param_set['homolog_length'], param_set['homolog_identity'], configs['intermediate'])
         print('Merge ..............\n')
-        genomes_contigs_dict = concatenate_contigs(cleaned_blastn_tab, mp_file, configs['ref_genome'])
+        genomes_contigs_dict = concatenate_contigs(cleaned_blastn_tab, mp_file, configs['reference_genome'])
         print('Output single files ........\n')
-        opt_files = output_single_files(genomes_contigs_dict, configs['ref_genome'], configs['db_dir'])
+        opt_files = output_single_files(genomes_contigs_dict, configs['reference_genome'], configs['intermediate'])
         opt_all_files.extend(opt_files)
     return opt_all_files
 
