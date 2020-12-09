@@ -29,6 +29,7 @@ from AlignStats import AlignStats
 from Bio import AlignIO
 from Bio.Align import MultipleSeqAlignment
 
+
 def main():
     # parse parameters
     parser = argparse.ArgumentParser(description = 'Reconstruct whole-genome-level MSA from large-scale datasets.')
@@ -67,7 +68,7 @@ def main():
                         default = None)
 
     args = parser.parse_args()
-    
+
     """
     Loading config file
     """
@@ -75,7 +76,7 @@ def main():
         with open(args.config_file, 'r') as config_file:
             configs_list = json.loads(config_file.read())
     except Exception as e:
-        print(e) 
+        print(e)
 
 
     if args.intermediate_dir:
@@ -83,7 +84,7 @@ def main():
         Check if intermediate path is given by cmd, use this path if yes
         """
         Inters = create_folder(args.intermediate_dir) # Create a folder for storing intermediate files
-    
+
     elif (len(configs_list[0]['intermediate']) != 0) & (len(configs_list[1]['intermediate']) != 0) & (len(configs_list[2]['intermediate']) != 0):
         """
         If intermediate path is not given by cmd, then check if it is in config file
@@ -115,7 +116,7 @@ def main():
         ref_genome = abspath_finder(configs_list[0]['reference_genome'])
     else:
         sys.exit("Please input a reference genome in fasta format!")
-    
+
     configs_list[0]["reference_genome"] = ref_genome # Add abs path of reference to anciet sample processing job
     configs_list[1]["reference_genome"] = ref_genome # Add abs path of reference to modern sample processing job
     configs_list[2]["reference_genome"] = ref_genome # Add abs path of  reference to genomes processing job
@@ -131,7 +132,7 @@ def main():
     elif len(configs_list[0]['parameter_set']['samples']) != 0:
         """
         If the path is given by config file, it obtains all samples' abs paths from path written in config file and store them in a list,
-        and overwrites config with a list of sample paths   
+        and overwrites config with a list of sample paths
         """
 
         a_samples = obtain_samples(configs_list[0]['parameter_set']['samples'])
@@ -154,14 +155,14 @@ def main():
     elif len(configs_list[1]['parameter_set']['samples']) != 0:
         """
         If the path is given by config file, it obtains all samples' abs paths from path written in config file and store them in a list,
-        and overwrites config with a list of sample paths   
+        and overwrites config with a list of sample paths
         """
 
         m_samples = obtain_samples(configs_list[1]['parameter_set']['samples'])
 
     else:
         m_samples = None
-    
+
     configs_list[1]['parameter_set']['samples'] = m_samples
 
 
@@ -179,7 +180,7 @@ def main():
     configs_list[2]['parameter_set']['samples'] = genomes
 
     # get the folder of genome assemblies
-    
+
     opt_dir = create_folder(args.output_dir)
 
 
@@ -205,7 +206,7 @@ def obtain_samples(folder_path):
         single_sample_path = abspath_finder(folder_path + '/' + i)
         sample_list.append(single_sample_path)
 
-    return sample_list 
+    return sample_list
 
 
 def workflow(configs):
@@ -215,7 +216,7 @@ def workflow(configs):
     print(db_dest)
     # build mapping with database files
     reconstructed_genome = build_mapping(db_dest, **configs)
-    
+
     return reconstructed_genome
 
 
@@ -242,10 +243,8 @@ def build_db_file(mode, ref_genome, db_dir, samples):
         cmd = "makeblastdb -in {ref} -dbtype nucl -out {dest}".format(**params)
         run_cmd_in_shell(cmd)
     else:
-    	print('database of {} mode was skipped!\n'.format(mode))
-    	pass
+        print('database of {} mode was skipped!\n'.format(mode))
 
-        
     # run the command
     # TODO: exception handling
 
@@ -286,7 +285,7 @@ def build_mapping(db_dest, **kwargs):
             opt_files = batch_consensus_builder(filtered_bams, param_set['minimum_coverage'], None, param_set['dominant_allele_frequency'], param_set['nproc'])
             print('reconstructed fasta files result: \n', opt_files)
             opt_all_files.extend(opt_files)
- 
+
     elif (mode == 'contigs') and param_set['samples']:
         configs = kwargs
         print('Generate mp file and concatenate ..........\n')
@@ -308,7 +307,7 @@ def build_mapping(db_dest, **kwargs):
 
 def single_mapping(output_dir, db_dest, sample, threads, m_mode):
     """
-    Args: 
+    Args:
         ref_genome: the input file name of reference genome
         sample: the input folder containing metagenomic reads of a sample
         threads: tunable parameter for #threads in bowtie2
@@ -316,7 +315,7 @@ def single_mapping(output_dir, db_dest, sample, threads, m_mode):
 
     """
     print("Mapping single sample {}".format(sample))
-    m_mode = m_mode.replace("*", "") # Removing escape character for m_mode 
+    m_mode = m_mode.replace("*", "") # Removing escape character for m_mode
     suffix = detect_reads_suffix(sample)
     opt_raw_bam = output_dir + '/' + sample.split('/')[-1] + '.bam'
 
@@ -333,10 +332,9 @@ def single_mapping(output_dir, db_dest, sample, threads, m_mode):
     return opt_raw_bam
 
 def bwt2_batch_mapping(sample_list, db_dest, threads, m_mode, processors):
-    
-  
+
     print("Batch mapping samples:\n {}".format("\n".join(sample_list)))
-    
+
     proc_num = len(sample_list)
     output_dir = '/'.join(db_dest.split('/')[:-1])
     params = [[output_dir, db_dest, sample_list[i], threads, m_mode] for i in range(proc_num)]
@@ -346,7 +344,7 @@ def bwt2_batch_mapping(sample_list, db_dest, threads, m_mode, processors):
 
 def run_cmd_in_shell(cmd):
     print('running command: ', cmd)
-    subprocess.call(cmd, shell=True)  
+    subprocess.call(cmd, shell=True)
 
 
 def detect_reads_suffix(reads_foler):
@@ -363,9 +361,9 @@ def single_bam_filter(output_dir, raw_bam, min_q, min_l, max_snp_edist):
         raw_bam: the raw bam file output from bwt2_batch_mapping()
         min_q: a tunable parameter for minimum quality
         min_l: a tunable parameter for minimum length
-        max_snp_edist: a tunable parameter for maximum SNP edit distance 
+        max_snp_edist: a tunable parameter for maximum SNP edit distance
 
-    Return: a filtered bam [filtered_sample.bam] 
+    Return: a filtered bam [filtered_sample.bam]
     """
     opt_filtered_bam = output_dir + '/' + 'filtered____'+ raw_bam.split('/')[-1]
     filter_path = os.path.dirname(__file__)+"/cmseq/filter.py"
@@ -384,7 +382,7 @@ def batch_bam_filter(bams, min_q, min_l, max_snp_edist, processors):
     output_dir = '/'.join(bams[0].split('/')[:-1])
     params = [[output_dir, bams[i], min_q, min_l, max_snp_edist] for i in range(proc_num)]
 
-    
+
     return multi_map(processors, single_bam_filter, params)
 
 def single_consensus_builder(output_dir, filtered_bam, min_c, t_dist, domi_ale_frq):
@@ -393,7 +391,7 @@ def single_consensus_builder(output_dir, filtered_bam, min_c, t_dist, domi_ale_f
           filtered_bam: A filtered bam file output from batch_bam_filter()
           min_c: a tunable parameter for minimum coverage
           t_dist: a tunable parameter for trimming distance
-          domi_ale_frq: a tunable parameter for dominant allele frequency 
+          domi_ale_frq: a tunable parameter for dominant allele frequency
 
 
     return: consensus sequences in a fasta file
@@ -409,7 +407,7 @@ def single_consensus_builder(output_dir, filtered_bam, min_c, t_dist, domi_ale_f
         cmd = "python3 {} {} --sortindex --mincov {} --dominant_frq_thrsh {} > {}".format(consensus_path, filtered_bam, min_c, domi_ale_frq, opt_filtered_consensus)
         run_cmd_in_shell(cmd)
 
-    return  opt_filtered_consensus 
+    return  opt_filtered_consensus
 
 def batch_consensus_builder(filtered_bams, min_c, t_dist, domi_ale_frq, processors):
 
