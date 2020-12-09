@@ -189,7 +189,7 @@ def main():
         inter_results.extend(dest)
 
 
-    output_file = opt_dir + '/Mac_genome_MSA.fna'
+    output_file = opt_dir + '/' + opt_dir.split('/')[-1] +'.fna'
     Mac_final = merge_all(inter_results, ref_genome, output_file)
     out_stats(Mac_final, opt_dir)
 
