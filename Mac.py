@@ -66,8 +66,16 @@ def main():
                         '--intermediate_dir',
                         help = 'Specify an intermediate folder for storing intermediate files. Default: [intermediates] in the working directory.',
                         default = None)
+    parser.add_argument('-c',
+                        '--clean',
+                        help='Clean intermediates that are generated during \
+                             the process, like DB files, fasta files etc. \
+                             The default value is False',
+                        default=False)
 
     args = parser.parse_args()
+
+    if_clean = args.clean
 
     """
     Loading config file
@@ -186,7 +194,7 @@ def main():
 
     inter_results = []
     for configs in configs_list:
-        dest = workflow(configs)
+        dest = workflow(configs, if_clean)
         inter_results.extend(dest)
 
 
@@ -209,13 +217,29 @@ def obtain_samples(folder_path):
     return sample_list
 
 
-def workflow(configs):
+def workflow(configs, if_clean):
     mode = configs['input_type']
     # build database
-    db_dest = build_db_file(mode, configs['reference_genome'], configs['intermediate'], configs['parameter_set']['samples'])
-    print(db_dest)
+    db_dest = []
+    if if_clean:
+        if mode == 'reads':
+            db_filenames = building_bowtie2_db(configs['intermediate'], configs['reference_genome'])
+        elif mode == 'contigs':
+            db_filenames = building_blastn_db(configs['intermediate'], configs['reference_genome'])
+
+        skip = True
+        for db_filename in db_filenames:
+            if not os.path.exists(db_filename):
+                skip = False
+                break
+        if skip:
+            # DB files exist, we skip db creation
+            db_dest = db_filenames
+    if not db_dest:
+        db_dest = build_db_file(mode, configs['reference_genome'], configs['intermediate'], configs['parameter_set']['samples'])
+    print('db_dest: ', db_dest)
     # build mapping with database files
-    reconstructed_genome = build_mapping(db_dest, **configs)
+    reconstructed_genome = build_mapping(db_dest, if_clean, **configs)
 
     return reconstructed_genome
 
@@ -252,7 +276,7 @@ def build_db_file(mode, ref_genome, db_dir, samples):
     return params['dest']
 
 
-def build_mapping(db_dest, **kwargs):
+def build_mapping(db_dest, if_clean, **kwargs):
     mode = kwargs['input_type']
     param_set = kwargs['parameter_set']
     opt_all_files = []
