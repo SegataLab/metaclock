@@ -680,7 +680,7 @@ def reorder_contigs_2(ref_fna_dict, recon_genome_dict):
     contigs_list = []
     for c in ref_ctig_coordinate:
         if c[0] in recon_genome_dict:
-            ctig_record = SeqRecord(Seq(recon_genome_dict[c[0]], generic_dna), id = c[0] + '_consensus', description = '')
+            ctig_record = SeqRecord(Seq(recon_genome_dict[c[0]].replace('N', '-'), generic_dna), id = c[0] + '_consensus', description = '')
             contigs_list.append(ctig_record)
         else:
             ctig_seq = len(ref_fna_dict[c[0]]) * '-'
