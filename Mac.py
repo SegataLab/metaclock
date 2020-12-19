@@ -71,10 +71,12 @@ def main():
                         help='Clean intermediates that are generated during \
                              the process, like DB files, fasta files etc. \
                              The default value is False',
-                        default=False)
+                        default=True)
 
     args = parser.parse_args()
 
+    # If the if_clean is True, we skip creation of DB files and bam files if
+    # they exist.
     if_clean = args.clean
 
     """
@@ -221,7 +223,7 @@ def workflow(configs, if_clean):
     mode = configs['input_type']
     # build database
     db_dest = []
-    if if_clean:
+    if not if_clean:
         if mode == 'reads':
             db_filenames = building_bowtie2_db(configs['intermediate'], configs['reference_genome'])
         elif mode == 'contigs':
@@ -333,7 +335,7 @@ def build_mapping(db_dest, if_clean, **kwargs):
     return opt_all_files
 
 
-def single_mapping(output_dir, db_dest, sample, threads, m_mode):
+def single_mapping(output_dir, db_dest, sample, threads, m_mode, if_clean):
     """
     Args:
         ref_genome: the input file name of reference genome
@@ -345,7 +347,10 @@ def single_mapping(output_dir, db_dest, sample, threads, m_mode):
     print("Mapping single sample {}".format(sample))
     m_mode = m_mode.replace("*", "") # Removing escape character for m_mode
     suffix = detect_reads_suffix(sample)
-    opt_raw_bam = output_dir + '/' + sample.split('/')[-1] + '.bam'
+    opt_raw_bam = reads_2_bam(sample.split('/')[-1], output_dir)
+
+    if os.path.exists(opt_raw_bam) and not if_clean:
+        return opt_raw_bam
 
     if suffix == "bz2":
         cmd = 'bzcat {}/*fastq.bz2 | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | samtools view -bS - > {}'.format(sample, db_dest, threads, ' '.join(m_mode.split(',')), opt_raw_bam)
@@ -365,7 +370,7 @@ def bwt2_batch_mapping(sample_list, db_dest, threads, m_mode, processors, **kwar
 
     proc_num = len(sample_list)
     output_dir = '/'.join(db_dest.split('/')[:-1])
-    params = [[output_dir, db_dest, sample_list[i], threads, m_mode] for i in range(proc_num)]
+    params = [[output_dir, db_dest, sample_list[i], threads, m_mode, kwargs.get('if_clean', False)] for i in range(proc_num)]
 
     return multi_map(processors, single_mapping, params)
 
