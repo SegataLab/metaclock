@@ -494,7 +494,7 @@ def output_trimmed_reads(trim_pos, bam_file):
     out_fastq.close()
 
 
-def generate_query_set_and_mp_file(output_dir, contigs_folder):
+def generate_query_set_and_mp_file(output_dir, contigs_folder, **kwargs):
     
     """
     Input: 'contigs' -> a folder of fasta files, each represents a genome
@@ -508,6 +508,10 @@ def generate_query_set_and_mp_file(output_dir, contigs_folder):
 
     mp_file = output_dir + '/genome_contigs_mp.csv'
     opened_mp = open(mp_file, 'w')
+
+    fna_file = generate_query_set_and_mp_file_1(output_dir, contigs_folder)
+    if os.path.exists(fna_file) and not kwargs.if_clean:
+        return fna_file
 
     subprocess.call('cat {}/* > {}/QuerySet.fna'.format(contigs_folder, output_dir), shell = True)
     all_fna = subprocess.getoutput('ls {}/*'.format(contigs_folder)).split('\n')
@@ -773,7 +777,7 @@ def building_blastn_db(intermediate_path, reference_genome):
 
 	return opt_1, opt_2, opt_3, opt_prefix
 
-def generate_query_set_and_mp_file(intermediate_path, contigs_folder):
+def generate_query_set_and_mp_file_1(intermediate_path, contigs_folder):
 
 	mapping_file = intermediate_path + '/genome_contigs_mp.csv'
 	cmd = 'cat {}/* > {}/QuerySet.fna'.format(contigs_folder, intermediate_path)
