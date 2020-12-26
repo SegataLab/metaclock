@@ -68,16 +68,16 @@ def main():
                         default = None)
     parser.add_argument('-c',
                         '--clean',
-                        help='Clean intermediates that are generated during \
-                             the process, like DB files, fasta files etc. \
-                             The default value is False',
-                        default=True)
+                        help='Clean intermediate files and rerun from the beginning, \
+                        otherwise rerun from the intermediate files',
+                        action='store_true')
 
     args = parser.parse_args()
 
     # If the if_clean is True, we skip creation of DB files and bam files if
     # they exist.
     if_clean = args.clean
+    print("Cleaning intermediate files: {}".format(if_clean))
 
     """
     Loading config file
@@ -85,28 +85,47 @@ def main():
     try:
         with open(args.config_file, 'r') as config_file:
             configs_list = json.loads(config_file.read())
+            print("Loading configuration file: completed!")
     except Exception as e:
         print(e)
 
-
+    
     if args.intermediate_dir:
         """
         Check if intermediate path is given by cmd, use this path if yes
         """
-        Inters = create_folder(args.intermediate_dir) # Create a folder for storing intermediate files
+        int_abs = abspath_finder(args.intermediate_dir)
+        if os.path.exists(int_abs) and not if_clean:
+            Inters = int_abs
+            print('Starting from the existing intermediate file folder:\n{}'.format(Inters))
+        else:
+            Inters = create_folder(args.intermediate_dir) # Create a folder for storing intermediate files
+            print('Creating the intermediate file folder:\n{}'.format(Inters))
 
     elif (len(configs_list[0]['intermediate']) != 0) & (len(configs_list[1]['intermediate']) != 0) & (len(configs_list[2]['intermediate']) != 0):
         """
         If intermediate path is not given by cmd, then check if it is in config file
         Use it if yes
         """
-        Inters = create_folder(configs_list[0]['intermediate'])
-
+        int_abs = abspath_finder(configs_list[0]['intermediate'])
+        if os.path.exists(int_abs) and not if_clean:
+            Inters = int_abs
+            print('Starting from the existing intermediate file folder:\n{}'.format(Inters))
+        else:
+            Inters = create_folder(configs_list[0]['intermediate'])
+            print('Creating the intermediate file folder:\n{}'.format(Inters))
     else:
         """
         If none of both above is true, create a folder called 'intermediates' in the working diretory by default.
         """
-        Inters = create_folder('intermediates')
+        int_abs = abspath_finder('intermediates')
+        if os.path.exists(int_abs) and not if_clean:
+            Inters = int_abs
+            print('Starting from the existing intermediate file folder:\n{}'.format(Inters))
+        else:
+            Inters = create_folder('intermediates')
+            print('Creating the intermediate file folder:\n{}'.format(Inters))
+
 
     configs_list[0]['intermediate'] = Inters # Add abs path of intermediate folder to anciet sample processing job
     configs_list[1]['intermediate'] = Inters # Add abs path of intermediate folder to modern sample processing job
@@ -130,7 +149,7 @@ def main():
     configs_list[0]["reference_genome"] = ref_genome # Add abs path of reference to anciet sample processing job
     configs_list[1]["reference_genome"] = ref_genome # Add abs path of reference to modern sample processing job
     configs_list[2]["reference_genome"] = ref_genome # Add abs path of  reference to genomes processing job
-
+    print('Reading reference genome from:\n{}'.format(ref_genome))
 
     if args.ancient_metagenomes:
         """
@@ -192,6 +211,7 @@ def main():
     # get the folder of genome assemblies
 
     opt_dir = create_folder(args.output_dir)
+    print('Generating outputs in:\n{}'.format(opt_dir))
 
 
     inter_results = []
@@ -225,21 +245,23 @@ def workflow(configs, if_clean):
     db_dest = []
     if not if_clean:
         if mode == 'reads':
-            db_filenames = building_bowtie2_db(configs['intermediate'], configs['reference_genome'])
+            db_filenames = bowtie2_db_files(configs['intermediate'], configs['reference_genome'])
         elif mode == 'contigs':
-            db_filenames = building_blastn_db(configs['intermediate'], configs['reference_genome'])
+            db_filenames = blastn_db_files(configs['intermediate'], configs['reference_genome'])
 
         skip = True
-        for db_filename in db_filenames:
+        for db_filename in db_filenames[:-1]:
             if not os.path.exists(db_filename):
                 skip = False
                 break
         if skip:
             # DB files exist, we skip db creation
-            db_dest = db_filenames
+            db_dest = db_filenames[-1]
+            print('Using existing database files {}'.format(db_dest))  
     if not db_dest:
+        print('Creating new database files')    
         db_dest = build_db_file(mode, configs['reference_genome'], configs['intermediate'], configs['parameter_set']['samples'])
-    print('db_dest: ', db_dest)
+    print('Database files path:\n{}'.format(db_dest))
     # build mapping with database files
     reconstructed_genome = build_mapping(db_dest, if_clean, **configs)
 
@@ -265,9 +287,11 @@ def build_db_file(mode, ref_genome, db_dir, samples):
         # build command
         cmd = "bowtie2-build -q {ref} {dest}".format(**params)
         run_cmd_in_shell(cmd)
+        print("Creating database for bowtie2: completed!")
     elif (mode == 'contigs') and params['Samples']:
         cmd = "makeblastdb -in {ref} -dbtype nucl -out {dest}".format(**params)
         run_cmd_in_shell(cmd)
+        print("Creating database for blastn: completed!")
     else:
         print('database of {} mode was skipped!\n'.format(mode))
 
@@ -289,16 +313,16 @@ def build_mapping(db_dest, if_clean, **kwargs):
             bam_files = bwt2_batch_mapping(
                 param_set['samples'], db_dest, param_set['bowtie2_threads'],
                 param_set['search_report_mode'], param_set['nproc'], if_clean) # parameters specific to mapping ancient samples
-            print('bam_files result: \n', bam_files)
+            print('Raw bam files: \n{}'.format('\n'.join(bam_files)))
             filtered_bams = batch_bam_filter(bam_files, param_set['minimum_mapping_quality'], param_set['minimum_mapping_length'], param_set['maximum_snp_edit_distance'], param_set['nproc'])
-            print('filtered bam files result: \n', filtered_bams)
+            print('Filtered bam files: \n{}'.format('\n'.join(filtered_bams)))
             opt_files = batch_consensus_builder(filtered_bams, param_set['minimum_coverage'], param_set['trim_distance'], param_set['dominant_allele_frequency'], param_set['nproc'])
-            print('reconstructed fasta files result: \n', opt_files)
+            print('Reconstructed fasta files: \n{}'.format('\n'.join(opt_files)))
             opt_all_files.extend(opt_files)
             if param_set['output_trimmed_reads'] == 1:
                 for bam in filtered_bams:
                     sorted_bam = bam + '.sorted'
-                    print("Output trimmed reads from {}\n".format(sorted_bam))
+                    print("Outputing trimmed reads from {}\n".format(sorted_bam))
                     output_trimmed_reads(param_set['trim_distance'], sorted_bam)
             else:
                 pass
@@ -309,28 +333,33 @@ def build_mapping(db_dest, if_clean, **kwargs):
             bam_files = bwt2_batch_mapping(
                 param_set['samples'], db_dest, param_set['bowtie2_threads'],
                 param_set['search_report_mode'], param_set['nproc'], if_clean) # parameters specific to mapping ancient samples
-            print('bam_files result: \n', bam_files)
+            print('Raw bam files: \n{}'.format('\n'.join(bam_files)))
             filtered_bams = batch_bam_filter(bam_files, param_set['minimum_mapping_quality'], param_set['minimum_mapping_length'], param_set['maximum_snp_edit_distance'], param_set['nproc'])
-            print('filtered bam files result: \n', filtered_bams)
+            print('Filtered bam files: \n{}'.format('\n'.join(filtered_bams)))
             opt_files = batch_consensus_builder(filtered_bams, param_set['minimum_coverage'], None, param_set['dominant_allele_frequency'], param_set['nproc'])
-            print('reconstructed fasta files result: \n', opt_files)
+            print('Reconstructed fasta files: \n{}'.format('\n'.join(opt_files)))
             opt_all_files.extend(opt_files)
 
     elif (mode == 'contigs') and param_set['samples']:
         configs = kwargs
-        print('Generate mp file and concatenate ..........\n')
         ctigs_concatenated = generate_query_set_and_mp_file(configs['intermediate'], param_set['samples'])
+        print('Generating mp file and concatenating genomes: completed!\n')
+
         mp_file = ctigs_concatenated[0]
         query_set = ctigs_concatenated[1]
         db_dest = configs['intermediate'] + '/'+ configs['reference_genome'].split('/')[-1]
-        print('Run blastn ........\n')
-        raw_blastn_tab = blast_genomes(configs['intermediate'], db_dest, query_set, param_set['blastn_threads'])
-        print('Run blastn qc ............\n')
+        raw_blastn_tab = blast_genomes(configs['intermediate'], db_dest, query_set, param_set['blastn_threads'], if_clean)
+        print('Genearating raw blastn results: completed!\n')
+
         cleaned_blastn_tab = QC_on_blastn(raw_blastn_tab, param_set['homolog_length'], param_set['homolog_identity'], configs['intermediate'])
-        print('Merge ..............\n')
+        print('Applying QC on raw blastn results: completed!\n')
+
         genomes_contigs_dict = concatenate_contigs(cleaned_blastn_tab, mp_file, configs['reference_genome'])
-        print('Output single files ........\n')
+        print('Reordering homologous fragments: completed!\n')
+
         opt_files = output_single_files(genomes_contigs_dict, configs['reference_genome'], configs['intermediate'])
+        print('Outputing single homologs files: completed!\n')
+
         opt_all_files.extend(opt_files)
     return opt_all_files
 
@@ -344,10 +373,10 @@ def single_mapping(output_dir, db_dest, sample, threads, m_mode, if_clean):
         m_mode: tunable parameter for searching mode in bowtie2
 
     """
-    print("Mapping single sample {}".format(sample))
+
     m_mode = m_mode.replace("*", "") # Removing escape character for m_mode
     suffix = detect_reads_suffix(sample)
-    opt_raw_bam = reads_2_bam(sample.split('/')[-1], output_dir)
+    opt_raw_bam = single_bam_file(sample.split('/')[-1], output_dir)
 
     if os.path.exists(opt_raw_bam) and not if_clean:
         return opt_raw_bam
@@ -362,21 +391,22 @@ def single_mapping(output_dir, db_dest, sample, threads, m_mode, if_clean):
         sys.exit("Reads have to be in the form of .bz2, .gz or .fastq!")
 
     run_cmd_in_shell(cmd)
+    print("Mapping single sample {}: completed!".format(sample))
     return opt_raw_bam
 
-def bwt2_batch_mapping(sample_list, db_dest, threads, m_mode, processors, **kwargs):
+def bwt2_batch_mapping(sample_list, db_dest, threads, m_mode, processors, if_clean):
 
-    print("Batch mapping samples:\n {}".format("\n".join(sample_list)))
+    # print("Batch mapping samples:\n {}".format("\n".join(sample_list)))
 
     proc_num = len(sample_list)
     output_dir = '/'.join(db_dest.split('/')[:-1])
-    params = [[output_dir, db_dest, sample_list[i], threads, m_mode, kwargs.get('if_clean', False)] for i in range(proc_num)]
+    params = [[output_dir, db_dest, sample_list[i], threads, m_mode, if_clean] for i in range(proc_num)]
 
     return multi_map(processors, single_mapping, params)
 
 
 def run_cmd_in_shell(cmd):
-    print('running command: ', cmd)
+    print('Running command:\n{}'.format(cmd))
     subprocess.call(cmd, shell=True)
 
 
@@ -409,7 +439,7 @@ def batch_bam_filter(bams, min_q, min_l, max_snp_edist, processors):
     """
     Parallelize single_bam_filter()
     """
-    print("Batch filter bams:\n {}".format("\n".join(bams)))
+    # print("Batch filter bams:\n {}".format("\n".join(bams)))
 
     proc_num = len(bams)
     output_dir = '/'.join(bams[0].split('/')[:-1])
@@ -447,7 +477,7 @@ def batch_consensus_builder(filtered_bams, min_c, t_dist, domi_ale_frq, processo
     """
     Parallelize single_consensus_builder()
     """
-    print("batch building consensus:\n {}".format("\n".join(filtered_bams)))
+    # print("Batch building consensus:\n {}".format("\n".join(filtered_bams)))
     proc_num = len(filtered_bams)
     output_dir = '/'.join(filtered_bams[0].split('/')[:-1])
     params = [[output_dir, filtered_bams[i], min_c, t_dist, domi_ale_frq] for i in range(proc_num)]
@@ -494,7 +524,7 @@ def output_trimmed_reads(trim_pos, bam_file):
     out_fastq.close()
 
 
-def generate_query_set_and_mp_file(output_dir, contigs_folder, **kwargs):
+def generate_query_set_and_mp_file(output_dir, contigs_folder):
     
     """
     Input: 'contigs' -> a folder of fasta files, each represents a genome
@@ -509,9 +539,6 @@ def generate_query_set_and_mp_file(output_dir, contigs_folder, **kwargs):
     mp_file = output_dir + '/genome_contigs_mp.csv'
     opened_mp = open(mp_file, 'w')
 
-    fna_file = generate_query_set_and_mp_file_1(output_dir, contigs_folder)
-    if os.path.exists(fna_file) and not kwargs.if_clean:
-        return fna_file
 
     subprocess.call('cat {}/* > {}/QuerySet.fna'.format(contigs_folder, output_dir), shell = True)
     all_fna = subprocess.getoutput('ls {}/*'.format(contigs_folder)).split('\n')
@@ -525,7 +552,12 @@ def generate_query_set_and_mp_file(output_dir, contigs_folder, **kwargs):
 
     return mp_file, '{}/QuerySet.fna'.format(output_dir)
 
-def blast_genomes(output_dir, db_dest, query_set, threads):
+def blast_genomes(output_dir, db_dest, query_set, threads, if_clean):
+
+    raw_blastn_opt_tab = raw_blastn_opt(output_dir, db_dest, query_set, threads)
+
+    if os.path.exists(raw_blastn_opt_tab) and not if_clean:
+        return raw_blastn_opt_tab
 
     outfmt = '6 qaccver saccver pident length mismatch gapopen qstart qend\
                     sstart send evalue bitscore qseq sseq'
@@ -740,64 +772,44 @@ def create_folder(name):
     os.makedirs(folder_name)
     return folder_name
 
-def building_bowtie2_db(intermediate_path, reference_genome):
+def bowtie2_db_files(intermediate_path, reference_genome):
 
-	opt_1 = intermediate_path + '/' + reference_genome.split('/')[-1] + '.1.bt2'
-	opt_2 = intermediate_path + '/' + reference_genome.split('/')[-1] + '.2.bt2'
-	opt_3 = intermediate_path + '/' + reference_genome.split('/')[-1] + '.3.bt2'
-	opt_4 = intermediate_path + '/' + reference_genome.split('/')[-1] + '.4.bt2'
-	opt_5 = intermediate_path + '/' + reference_genome.split('/')[-1] + '.rev.1.bt2'
-	opt_6 = intermediate_path + '/' + reference_genome.split('/')[-1] + '.rev.2.bt2'
+    opt_1 = intermediate_path + '/' + reference_genome.split('/')[-1] + '.1.bt2'
+    opt_2 = intermediate_path + '/' + reference_genome.split('/')[-1] + '.2.bt2'
+    opt_3 = intermediate_path + '/' + reference_genome.split('/')[-1] + '.3.bt2'
+    opt_4 = intermediate_path + '/' + reference_genome.split('/')[-1] + '.4.bt2'
+    opt_5 = intermediate_path + '/' + reference_genome.split('/')[-1] + '.rev.1.bt2'
+    opt_6 = intermediate_path + '/' + reference_genome.split('/')[-1] + '.rev.2.bt2'
+    opt_prefix = intermediate_path + '/' + reference_genome.split('/')[-1]
 
-	return opt_1, opt_2, opt_3, opt_4, opt_5, opt_6
-
-
-
-def reads_2_bam(sample_4_bowtie2, intermediate_path):
-	opt_raw_bam = intermediate_path +'/'+ sample_4_bowtie2.split('/')[-1] + '.bam'
-	return opt_raw_bam
+    return opt_1, opt_2, opt_3, opt_4, opt_5, opt_6, opt_prefix
 
 
-def filter_bam(raw_bam, intermediate_path):
-	filter_bam = intermediate_path + '/' + 'filtered____'+ raw_bam.split('/')[-1]
-	return filter_bam
 
-def FilteredBam_2_consensus(filtered_bam, intermediate_path):
-	opt_filtered_consensus = intermediate_path + '/' + 'consensus_'+ filtered_bam.split('/')[-1].replace('.bam', '.fna')
-	sorted_filtered_bam = filtered_bam + '.sorted'
-	indexed_sorted_bam = sorted_filtered_bam + '.bai'
-	return opt_filtered_consensus, sorted_filtered_bam, indexed_sorted_bam
+def single_bam_file(sample_4_bowtie2, intermediate_path):
+    opt_raw_bam = intermediate_path +'/'+ sample_4_bowtie2.split('/')[-1] + '.bam'
+    return opt_raw_bam
 
-def building_blastn_db(intermediate_path, reference_genome):
 
-	opt_1 = intermediate_path + '/' + reference_genome.split('/')[-1] + '.nhr'
-	opt_2 = intermediate_path + '/' + reference_genome.split('/')[-1] + '.nin'
-	opt_3 = intermediate_path + '/' + reference_genome.split('/')[-1] + '.nsq'
-	opt_prefix = intermediate_path + '/' + reference_genome.split('/')[-1]
 
-	return opt_1, opt_2, opt_3, opt_prefix
+def blastn_db_files(intermediate_path, reference_genome):
 
-def generate_query_set_and_mp_file_1(intermediate_path, contigs_folder):
+    opt_1 = intermediate_path + '/' + reference_genome.split('/')[-1] + '.nhr'
+    opt_2 = intermediate_path + '/' + reference_genome.split('/')[-1] + '.nin'
+    opt_3 = intermediate_path + '/' + reference_genome.split('/')[-1] + '.nsq'
+    opt_prefix = intermediate_path + '/' + reference_genome.split('/')[-1]
 
-	mapping_file = intermediate_path + '/genome_contigs_mp.csv'
-	cmd = 'cat {}/* > {}/QuerySet.fna'.format(contigs_folder, intermediate_path)
-	return mapping_file, '{}/QuerySet.fna'.format(intermediate_path)
+    return opt_1, opt_2, opt_3, opt_prefix
 
-def generate_raw_blastn_results(intermediate_path, db_dest, query_set, threads):
-	outfmt = '6 qaccver saccver pident length mismatch gapopen qstart qend\
-				sstart send evalue bitscore qseq sseq'
 
-	cmd = "blastn -db {} -query {} -outfmt '{}' -num_threads {} -word_size 9 -out {}/raw_blastn_opt.tab".format(db_dest, query_set, outfmt, threads, intermediate_path)
+def raw_blastn_opt(intermediate_path, db_dest, query_set, threads):
+    outfmt = '6 qaccver saccver pident length mismatch gapopen qstart qend\
+                sstart send evalue bitscore qseq sseq'
 
-	return '{}/raw_blastn_opt.tab'.format(intermediate_path)
+    cmd = "blastn -db {} -query {} -outfmt '{}' -num_threads {} -word_size 9 -out {}/raw_blastn_opt.tab".format(db_dest, query_set, outfmt, threads, intermediate_path)
 
-def QC_on_blastn(raw_blastn_opt, length, pid, intermediate_path):
-	cmd = 'cut -f 1-14 {} | bo6_screen.py --length {} --pid {} > {}/cleaned_blastn_opt.tab'.format(raw_blastn_opt, length, pid, intermediate_path)
-	return '{}/cleaned_blastn_opt.tab'.format(intermediate_path)
+    return '{}/raw_blastn_opt.tab'.format(intermediate_path)
 
-def generate_blastn_genoems(sample, intermediate_path):
-	opt = intermediate_path + '/' + 'homolog____' + sample.split('/')[-1]
-	return opt
 
 if __name__ == "__main__":
     main()
