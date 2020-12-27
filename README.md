@@ -28,7 +28,7 @@ particularly for accurately integrating ancient lineages with modern relatives. 
 phylogentics analysis, such as molecular clock and highly-resolved strain-level phylogeny. 
 
 Graphic pipeline for contigs-based approach:
-![Fig. 1](https://bitbucket.org/CibioCM/ittiada/raw/1a25119c4c0ba42fb8206ee267b8a2294690b57d/images/Contigs_based.png "Fig. 1")
+![Fig. 1](https://github.com/SegataLab/ITTIADA/blob/c77406a73f4534b731a139501f9c13c9fe61566b/images/Contigs_based.png "Fig. 1")
 
 Graphic pipeline for reads-based approach:
 ![Fig. 2](https://bitbucket.org/CibioCM/ittiada/raw/1a25119c4c0ba42fb8206ee267b8a2294690b57d/images/Reads_based.png "Fig. 2")
