@@ -94,37 +94,23 @@ def main():
         """
         Check if intermediate path is given by cmd, use this path if yes
         """
-        int_abs = abspath_finder(args.intermediate_dir)
-        if os.path.exists(int_abs) and not if_clean:
-            Inters = int_abs
-            print('Starting from the existing intermediate file folder:\n{}'.format(Inters))
-        else:
-            Inters = create_folder(args.intermediate_dir) # Create a folder for storing intermediate files
-            print('Creating the intermediate file folder:\n{}'.format(Inters))
+
+        Inters = create_folder(args.intermediate_dir) # Create a folder for storing intermediate files
+        print('Intermediate files folder:\n{}'.format(Inters))
 
     elif (len(configs_list[0]['intermediate']) != 0) & (len(configs_list[1]['intermediate']) != 0) & (len(configs_list[2]['intermediate']) != 0):
         """
         If intermediate path is not given by cmd, then check if it is in config file
         Use it if yes
         """
-        int_abs = abspath_finder(configs_list[0]['intermediate'])
-        if os.path.exists(int_abs) and not if_clean:
-            Inters = int_abs
-            print('Starting from the existing intermediate file folder:\n{}'.format(Inters))
-        else:
-            Inters = create_folder(configs_list[0]['intermediate'])
-            print('Creating the intermediate file folder:\n{}'.format(Inters))
+        Inters = create_folder(configs_list[0]['intermediate'])
+        print('Intermediate files folder:\n{}'.format(Inters))
     else:
         """
         If none of both above is true, create a folder called 'intermediates' in the working diretory by default.
         """
-        int_abs = abspath_finder('intermediates')
-        if os.path.exists(int_abs) and not if_clean:
-            Inters = int_abs
-            print('Starting from the existing intermediate file folder:\n{}'.format(Inters))
-        else:
-            Inters = create_folder('intermediates')
-            print('Creating the intermediate file folder:\n{}'.format(Inters))
+        Inters = create_folder('intermediates')
+        print('Intermediate files folder:\n{}'.format(Inters))
 
 
     configs_list[0]['intermediate'] = Inters # Add abs path of intermediate folder to anciet sample processing job
@@ -211,7 +197,7 @@ def main():
     # get the folder of genome assemblies
 
     opt_dir = create_folder(args.output_dir)
-    print('Generating outputs in:\n{}'.format(opt_dir))
+    print('Outputs folder:\n{}'.format(opt_dir))
 
 
     inter_results = []
@@ -245,18 +231,18 @@ def workflow(configs, if_clean):
     db_dest = []
     if not if_clean:
         if mode == 'reads':
-            db_filenames = bowtie2_db_files(configs['intermediate'], configs['reference_genome'])
+            db_filenames = get_bowtie2_db_files(configs['intermediate'], configs['reference_genome'])
         elif mode == 'contigs':
-            db_filenames = blastn_db_files(configs['intermediate'], configs['reference_genome'])
+            db_filenames = get_blastn_db_files(configs['intermediate'], configs['reference_genome'])
 
         skip = True
-        for db_filename in db_filenames[:-1]:
+        for db_filename in db_filenames['db_files']:
             if not os.path.exists(db_filename):
                 skip = False
                 break
         if skip:
             # DB files exist, we skip db creation
-            db_dest = db_filenames[-1]
+            db_dest = db_filenames['db_prefix']
             print('Using existing database files {}'.format(db_dest))  
     if not db_dest:
         print('Creating new database files')    
@@ -376,7 +362,7 @@ def single_mapping(output_dir, db_dest, sample, threads, m_mode, if_clean):
 
     m_mode = m_mode.replace("*", "") # Removing escape character for m_mode
     suffix = detect_reads_suffix(sample)
-    opt_raw_bam = single_bam_file(sample.split('/')[-1], output_dir)
+    opt_raw_bam = get_single_bam_file(sample.split('/')[-1], output_dir)
 
     if os.path.exists(opt_raw_bam) and not if_clean:
         return opt_raw_bam
@@ -554,7 +540,7 @@ def generate_query_set_and_mp_file(output_dir, contigs_folder):
 
 def blast_genomes(output_dir, db_dest, query_set, threads, if_clean):
 
-    raw_blastn_opt_tab = raw_blastn_opt(output_dir, db_dest, query_set, threads)
+    raw_blastn_opt_tab = get_raw_blastn_opt(output_dir, db_dest, query_set, threads)
 
     if os.path.exists(raw_blastn_opt_tab) and not if_clean:
         return raw_blastn_opt_tab
@@ -768,11 +754,14 @@ def abspath_finder(file):
 def create_folder(name):
     folder_name = abspath_finder(name) # determine the abs path
     if os.path.exists(folder_name):
-        shutil.rmtree(folder_name)
-    os.makedirs(folder_name)
+        print('{} exists: pass!'.format(folder_name))
+        pass
+    else:
+        os.makedirs(folder_name)
+        print('Creating folder {}'.format(folder_name))
     return folder_name
 
-def bowtie2_db_files(intermediate_path, reference_genome):
+def get_bowtie2_db_files(intermediate_path, reference_genome):
 
     opt_1 = intermediate_path + '/' + reference_genome.split('/')[-1] + '.1.bt2'
     opt_2 = intermediate_path + '/' + reference_genome.split('/')[-1] + '.2.bt2'
@@ -782,27 +771,27 @@ def bowtie2_db_files(intermediate_path, reference_genome):
     opt_6 = intermediate_path + '/' + reference_genome.split('/')[-1] + '.rev.2.bt2'
     opt_prefix = intermediate_path + '/' + reference_genome.split('/')[-1]
 
-    return opt_1, opt_2, opt_3, opt_4, opt_5, opt_6, opt_prefix
+    return {'db_files': [opt_1, opt_2, opt_3, opt_4, opt_5, opt_6], 'db_prefix': opt_prefix}
 
 
 
-def single_bam_file(sample_4_bowtie2, intermediate_path):
+def get_single_bam_file(sample_4_bowtie2, intermediate_path):
     opt_raw_bam = intermediate_path +'/'+ sample_4_bowtie2.split('/')[-1] + '.bam'
     return opt_raw_bam
 
 
 
-def blastn_db_files(intermediate_path, reference_genome):
+def get_blastn_db_files(intermediate_path, reference_genome):
 
     opt_1 = intermediate_path + '/' + reference_genome.split('/')[-1] + '.nhr'
     opt_2 = intermediate_path + '/' + reference_genome.split('/')[-1] + '.nin'
     opt_3 = intermediate_path + '/' + reference_genome.split('/')[-1] + '.nsq'
     opt_prefix = intermediate_path + '/' + reference_genome.split('/')[-1]
 
-    return opt_1, opt_2, opt_3, opt_prefix
+    return {'db_files': [opt_1, opt_2, opt_3], 'db_prefix': opt_prefix}
 
 
-def raw_blastn_opt(intermediate_path, db_dest, query_set, threads):
+def get_raw_blastn_opt(intermediate_path, db_dest, query_set, threads):
     outfmt = '6 qaccver saccver pident length mismatch gapopen qstart qend\
                 sstart send evalue bitscore qseq sseq'
 
