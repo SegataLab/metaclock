@@ -768,6 +768,27 @@ def reorder_contigs(ref_fna_dict, recon_genome_dict):
             init += len(ref_fna_dict[c[0]]) * "-"
     return init
 
+def reorder_contigs_2(ref_fna_dict, recon_genome_dict):
+    """
+    This version is to output single fasta files for each homology-guided reconstructed genomes
+    Output a list of SeqRecord which contain all contigs.
+    """
+    ref_ctig_coordinate=sorted([(i, len(ref_fna_dict[i].seq)) for i in ref_fna_dict], key=lambda x: x[0])
+
+    contigs_list = []
+    for c in ref_ctig_coordinate:
+        if c[0] in recon_genome_dict:
+            ctig_record = SeqRecord(Seq(recon_genome_dict[c[0]], generic_dna), id = c[0], description = '')
+            contigs_list.append(ctig_record)
+        else:
+            ctig_record = len(ref_fna_dict[0]) * 'N'
+            contigs_list.append(ctig_record)
+
+    return contigs_list
+
+
+
+
 def write_one_file(genomes_dict_, ref_fna):
     ref_ctig_dict = SeqIO.to_dict(SeqIO.parse(open(ref_fna), "fasta"))
     recon_genomes_list = []

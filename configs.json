@@ -5,16 +5,16 @@
     "age_type":1,
     "intermediate":"",
     "parameter_set":{
-      "search_report_mode":"-k,1",
-      "bowtie2_threads":15,
+      "search_report_mode":"-k,5",
+      "bowtie2_threads":10,
       "minimum_mapping_quality":30,
       "minimum_mapping_length":30,
-      "maximum_snp_edit_distance":0.04,
-      "nproc":3,
-      "minimum_coverage":30,
+      "maximum_snp_edit_distance":0.03,
+      "nproc":5,
+      "minimum_coverage":5,
       "trim_distance":"5:5",
       "dominant_allele_frequency":0.8,
-      "output_trimmed_reads":1,
+      "output_trimmed_reads":0,
       "samples":""
     }
   },
@@ -28,9 +28,9 @@
       "bowtie2_threads":15,
       "minimum_mapping_quality":30,
       "minimum_mapping_length":30,
-      "maximum_snp_edit_distance":0.04,
-      "nproc":3,
-      "minimum_coverage":30,
+      "maximum_snp_edit_distance":0.03,
+      "nproc":5,
+      "minimum_coverage":5,
       "dominant_allele_frequency":0.8,
       "samples":""
     }
