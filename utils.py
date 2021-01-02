@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from __future__ import division
 import re 
+import os
 import multiprocessing as mp
 import numpy as np
 import bz2
@@ -104,9 +105,10 @@ class stats(object):
 		else:
 		        return "0"
 
-def out_stats(fna_file):
+def out_stats(fna_file, output_dir=os.getcwd()):
 	seqio_dict = SeqIO.to_dict(SeqIO.parse(fna_file, "fasta"))
-	opt = open("aln_stats.tsv","w")
+	opt_file = output_dir + '/Mac_stats.tsv'
+	opt = open(opt_file,"w")
 	opt.write("SeqHeader\t"+ "GapRatio\t" + "AlignLength\t" + "SeqLength\t" +"GCcontent\n")
 	for seq in seqio_dict:
 		Seq = str(seqio_dict[seq].seq)
