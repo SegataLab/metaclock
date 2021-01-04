@@ -707,7 +707,8 @@ def reorder_contigs_2(ref_fna_dict, recon_genome_dict):
     contigs_list = []
     for c in ref_ctig_coordinate:
         if c[0] in recon_genome_dict:
-            ctig_record = SeqRecord(Seq(recon_genome_dict[c[0]].replace('N', '-'), generic_dna), id = c[0] + '_consensus', description = '')
+            recon_seq = seq_proofreading(recon_genome_dict[c[0]])
+            ctig_record = SeqRecord(Seq(recon_seq, generic_dna), id = c[0] + '_consensus', description = '')
             contigs_list.append(ctig_record)
         else:
             ctig_seq = len(ref_fna_dict[c[0]]) * '-'
@@ -741,6 +742,7 @@ def merge_all(files_lst, ref_fna, output_file):
         for header in sorted_headers:
             header = header + '_consensus'
             concatenated_seq += str(file_to_dict[header].seq)
+        concatenated_seq = seq_proofreading(concatenated_seq)
         single_seq_record = SeqRecord(Seq(concatenated_seq, generic_dna), id = seq_name, description = '')
         seq_records.append(single_seq_record)
     SeqIO.write(seq_records, output_file, 'fasta')
@@ -798,6 +800,11 @@ def get_raw_blastn_opt(intermediate_path, db_dest, query_set, threads):
     cmd = "blastn -db {} -query {} -outfmt '{}' -num_threads {} -word_size 9 -out {}/raw_blastn_opt.tab".format(db_dest, query_set, outfmt, threads, intermediate_path)
 
     return '{}/raw_blastn_opt.tab'.format(intermediate_path)
+
+def seq_proofreading(Sequence):
+    legit_bases = ['A', 'T', 'G', 'C', '-'] # five bases allowed to occur in the reconstructed sequence
+    legalized_seq = [b.upper() if b.upper() in legit_bases else '-' for b in Sequence]
+    return "".join(legalized_seq)  
 
 
 if __name__ == "__main__":

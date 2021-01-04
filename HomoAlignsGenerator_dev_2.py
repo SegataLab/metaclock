@@ -103,7 +103,7 @@ def refs_collector(alns_folder, opt_dir):
 	ref_header_lst = [] # a list of reference names
 	all_alns = subprocess.getoutput('ls {}/*'.format(alns_folder)).split('\n')
 	for aln in all_alns:
-		RefSeq_name = aln.split('/')[1].split('-')[0]
+		RefSeq_name = aln.split('/')[1]
 		aln_dict = SeqIO.to_dict(SeqIO.parse(aln,'fasta'))
 		rec_lst.append(SeqRecord(Seq(str(aln_dict[RefSeq_name].seq),\
 		 generic_dna), id = RefSeq_name, description = ''))
