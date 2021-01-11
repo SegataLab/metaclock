@@ -30,6 +30,34 @@ from Bio import AlignIO
 from Bio.Align import MultipleSeqAlignment
 
 
+def validator(params):
+    # check if required parameter provided
+    try:
+        input_type = params['input_type']
+    except KeyError:
+        raise Exception('input_type not provided')
+
+    try:
+        reference_genome = params['reference_genome']
+    except KeyError:
+        raise Exception('reference_genome not provided')
+
+    try:
+        age_type = params['age_type']
+    except KeyError:
+        raise Exception('age_type not provided')
+
+    try:
+        maximum_snp_edit_distance = params['maximum_snp_edit_distance']
+    except KeyError:
+        raise Exception('maximum_snp_edit_distance not provided')
+
+    try:
+        sample = params['sample']
+    except KeyError:
+        raise Exception('sample not provided')
+
+
 def main():
     # parse parameters
     parser = argparse.ArgumentParser(description = 'Reconstruct whole-genome-level MSA from large-scale datasets.')
