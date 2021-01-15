@@ -4,6 +4,7 @@
 import json
 import sys
 import math
+import re
 import timeit
 import subprocess
 import argparse
@@ -56,6 +57,55 @@ def validator(params):
         sample = params['sample']
     except KeyError:
         raise Exception('sample not provided')
+
+    # check data type
+    if type(input_type) is not str:
+        raise TypeError("input_type should be str type")
+    if type(reference_genome) is not str:
+        raise TypeError("reference_genome should be str type")
+    if type(age_type) is not int:
+        raise TypeError("age_type should be str type")
+    if params.get(intermediate) and type(params.get(intermediate)) is not str:
+        raise TypeError("intermediate should be str type")
+    if params.get(search_report_mode):
+        if type(params.get(search_report_mode)) is not str:
+            raise TypeError("search_report_mode should be str type")
+        if not re.match('-k,[0-9]', params.get(search_report_mode)):
+            raise TypeError("search_report_mode should ' \
+                            'match re pattern `-k,[0-9]`")
+    if params.get(bowtie2_threads) \
+        and type(params.get(bowtie2_threads))is not str:
+        raise TypeError("bowtie2_threads should be str type")
+    if params.get(minimum_mapping_quality) \
+        and type(params.get(minimum_mapping_quality)) is not int:
+        raise TypeError("minimum_mapping_quality should be int type")
+    if params.get(minimum_mapping_length) \
+        and type(params.get(minimum_mapping_length)) is not int:
+        raise TypeError("minimum_mapping_length should be int type")
+    if type(maximum_snp_edit_distance)is not float:
+        raise TypeError("maximum_snp_edit_distance should be float type")
+    if params.get(nproc) \
+        and type(params.get(nproc)) is not int:
+        raise TypeError("nproc should be int type")
+    if params.get(minimum_coverage) \
+        and type(params.get(minimum_coverage)) is not int:
+        raise TypeError("minimum_coverage should be int type")
+    if params.get(trim_distance):
+        if type(params.get(trim_distance)) is not str:
+            raise TypeError("trim_distance should be str type")
+        if not re.match('[0-9]:[0-9]', params.get(trim_distance)):
+            raise TypeError("trim_distance should ' \
+                            'match re pattern `[0-9]:[0-9]`")
+    if params.get(dominant_allele_frequency) \
+        and type(params.get(dominant_allele_frequency))is not float:
+        raise TypeError("dominant_allele_frequency should be float type")
+    if params.get(output_trimmed_reads) \
+        and type(params.get(output_trimmed_reads)) is not int:
+        raise TypeError("output_trimmed_reads should be int type")
+    if type(sample) is not str:
+        raise TypeError("sample should be str type")
+
+    #TODO: modern reads and contigs
 
 
 def main():
