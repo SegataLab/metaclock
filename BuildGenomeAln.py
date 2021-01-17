@@ -435,7 +435,7 @@ def bowtie2_build(ref_fna):
 
 def detect_reads_suffix(reads_foler):
 
-    reads_file = subprocess.getoutput('ls {}'.format(reads_foler)).split('\n')[0]
+    reads_file = subprocess.getoutput('ls {}/*fastq*'.format(reads_foler)).split('\n')[0]
     return reads_file.split('.')[-1]  
 
 def mapping_(multi_args):
@@ -444,11 +444,11 @@ def mapping_(multi_args):
     k = k.replace("*", "")
     suffix = detect_reads_suffix(s)
     if suffix == "bz2":
-        cmd = 'bzcat {}/*bz2 | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | \
+        cmd = 'bzcat {}/*fastq.bz2 | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | \
 samtools view -bS - > {}'.format(s, ref, t, ' '.join(k.split(',')), s+'.bam')
         subprocess.call(cmd, shell = True)
     elif suffix == "gz":
-        cmd = 'zcat {}/*gz | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | \
+        cmd = 'zcat {}/*fastq.gz | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | \
 samtools view -bS - > {}'.format(s, ref, t, ' '.join(k.split(',')), s+'.bam')
         subprocess.call(cmd, shell = True)
     elif suffix == "fastq":
@@ -465,11 +465,11 @@ def mapping_a(multi_args):
     suffix = detect_reads_suffix(s)
     labeled_ancient_opt_bam = '/'.join(s.split('/')[:-1])+'/a__'+ s.split('/')[-1] + '.bam'
     if suffix == "bz2":
-        cmd = 'bzcat {}/*bz2 | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | \
+        cmd = 'bzcat {}/*fastq.bz2 | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | \
 samtools view -bS - > {}'.format(s, ref, t, ' '.join(k.split(',')), labeled_ancient_opt_bam)
         subprocess.call(cmd, shell = True)
     elif suffix == "gz":
-        cmd = 'zcat {}/*gz | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | \
+        cmd = 'zcat {}/*fastq.gz | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | \
 samtools view -bS - > {}'.format(s, ref, t, ' '.join(k.split(',')), labeled_ancient_opt_bam)
         subprocess.call(cmd, shell = True)
     elif suffix == "fastq":
@@ -487,11 +487,11 @@ def mapping_m(multi_args):
     suffix = detect_reads_suffix(s)
     labeled_modern_opt_bam = '/'.join(s.split('/')[:-1])+'/m__'+ s.split('/')[-1] + '.bam'
     if suffix == "bz2":
-        cmd = 'bzcat {}/*bz2 | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | \
+        cmd = 'bzcat {}/*.fastq.bz2 | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | \
 samtools view -bS - > {}'.format(s, ref, t, ' '.join(k.split(',')), labeled_modern_opt_bam)
         subprocess.call(cmd, shell = True)
-    elif suffix == "gz":
-        cmd = 'zcat {}/*gz | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | \
+    elif suffix == "fastq.gz":
+        cmd = 'zcat {}/*fastq.gz | bowtie2 -x {} -p {} --end-to-end {} --no-unal -U - -S - | \
 samtools view -bS - > {}'.format(s, ref, t, ' '.join(k.split(',')), labeled_modern_opt_bam)
         subprocess.call(cmd, shell = True)
     elif suffix == "fastq":
@@ -767,6 +767,27 @@ def reorder_contigs(ref_fna_dict, recon_genome_dict):
         else:
             init += len(ref_fna_dict[c[0]]) * "-"
     return init
+
+def reorder_contigs_2(ref_fna_dict, recon_genome_dict):
+    """
+    This version is to output single fasta files for each homology-guided reconstructed genomes
+    Output a list of SeqRecord which contain all contigs.
+    """
+    ref_ctig_coordinate=sorted([(i, len(ref_fna_dict[i].seq)) for i in ref_fna_dict], key=lambda x: x[0])
+
+    contigs_list = []
+    for c in ref_ctig_coordinate:
+        if c[0] in recon_genome_dict:
+            ctig_record = SeqRecord(Seq(recon_genome_dict[c[0]], generic_dna), id = c[0], description = '')
+            contigs_list.append(ctig_record)
+        else:
+            ctig_record = len(ref_fna_dict[0]) * 'N'
+            contigs_list.append(ctig_record)
+
+    return contigs_list
+
+
+
 
 def write_one_file(genomes_dict_, ref_fna):
     ref_ctig_dict = SeqIO.to_dict(SeqIO.parse(open(ref_fna), "fasta"))

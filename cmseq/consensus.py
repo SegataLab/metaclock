@@ -26,7 +26,7 @@ def consensus_from_file(args):
 		
 		trimParam = tuple(args.trim.strip().split(':')) if args.trim else args.trim
 
-		sq = i.reference_free_consensus(mincov=args.mincov,minqual=args.minqual,dominant_frq_thrsh=args.dominant_frq_thrsh,noneCharacter='N',trimReads=trimParam)
+		sq = i.reference_free_consensus(mincov=args.mincov,minqual=args.minqual,dominant_frq_thrsh=args.dominant_frq_thrsh,noneCharacter='-',trimReads=trimParam)
 		
 		if sq is not None:
 			lst.append(SeqRecord(Seq(sq, IUPAC.IUPACAmbiguousDNA), id=i.name+"_consensus", description=''))
