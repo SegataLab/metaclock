@@ -35,7 +35,7 @@ def read_args(args):
 
 
 
-def tip_to_root(tre, tips_lst):
+def tip_to_root(tre, tips_lst, mp):
     x_axis = []
     y_axis = []
     root = tre.get_tree_root()
@@ -59,7 +59,7 @@ def lm_model(x, y):
     return r_sq, root_age[0], slope[0], residuals.sum(), y_predict, X, y
 
 
-def rooting_trees(tre):
+def rooting_trees(tre, tips_lst, mp):
     lm_dict = {}
     rooted_trees = {}
     tree = 0
@@ -68,7 +68,7 @@ def rooting_trees(tre):
             tree += 1
             tre.set_outgroup(n)
             tre.name = "tree_" + str(tree)
-            lm_dict[tre.name] = tip_to_root(tre, tips_lst)
+            lm_dict[tre.name] = tip_to_root(tre, tips_lst, mp)
             rooted_trees[tre.name] = tre.write()
     return lm_dict, rooted_trees
 
@@ -97,7 +97,7 @@ def temp_est(ml_tree, mp_file, opt_png):
     tre = Tree(open(ml_tree).read().rstrip(), format = 2)
     mp = {i.strip().split('\t')[0]: i.strip().split('\t')[1] for i in open(mp_file).readlines()}
     tips_lst = [i.strip().split('\t')[0] for i in open(mp_file).readlines()]
-    tree_lm = rooting_trees(tre) #1. lm model for all trees, 2. tree in format2
+    tree_lm = rooting_trees(tre, tips_lst, mp) #1. lm model for all trees, 2. tree in format2
     trees_docs = lm_trees(tree_lm[0])
     best_fit_tree = trees_docs[trees_docs.sq_residual_sum == trees_docs.sq_residual_sum.min()]
     x_axis = best_fit_tree.iloc[-1]['x_axis']

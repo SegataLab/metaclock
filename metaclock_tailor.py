@@ -24,6 +24,8 @@ from Bio import AlignIO
 from Bio.Phylo.TreeConstruction import DistanceCalculator
 from Bio.Phylo.TreeConstruction import _Matrix
 from Bio import SeqIO
+from Bio.SeqRecord import SeqRecord
+from Bio.Seq import Seq
 import pandas as pd
 from utils import multi_proc_dict
 from utils import EvalCdf
@@ -34,14 +36,16 @@ import matplotlib.pyplot as plt
 from visual_utils import hist_plot
 from ete3 import Tree
 import matplotlib.gridspec as gridspec
+from datetime import datetime
+from operator import itemgetter
 
 
 
 def add_landscape_options(subparsers):
 
     landscape_parser = subparsers.add_parser('landscape',
-                                             help = 'Tailor the whole genome alignment based on the whole genome landscape.',
-                                             description = 'Assess mutational landscape of whole genome alignment and select interested regions.')
+                                             help = 'Tailor the whole genome alignment based on the genome landscape.',
+                                             description = 'Assess mutational landscape of whole genome alignment and select interesting regions.')
 
     landscape_parser.add_argument('wga',
                         nargs = '?',
@@ -58,8 +62,8 @@ def add_landscape_options(subparsers):
     landscape_parser.add_argument('-gff3',
                         '--gff3_annotation',
                         help = 'Input the gff3 annotation file. If no gff3 file was provided automatic \
-                        annotation would be performed. (Please use the same reference sequence for resconstructing whole genome alignment \
-                        for annotation in order to maintain the consistency.)',
+                        annotation would be performed. (Please use gff file from the same reference \
+                        sequence in resconstructing whole genome alignment in order to maintain the consistency.)',
                         type = str,
                         default = None)
 
@@ -67,18 +71,6 @@ def add_landscape_options(subparsers):
                         '--select',
                         help = 'Flag this option to select your interesting regions. Note: other options need to be specificed.',
                         action = 'store_true')
-
-    landscape_parser.add_argument('-l',
-                        '--minimum_length',
-                        help = 'Specify the minimum length of a child alignment to select. default: [0]',
-                        type = int,
-                        default = 0)
-
-    landscape_parser.add_argument('-mi',
-                        '--minimum_missing_information',
-                        help = 'Specify the minimum missing information in each sample to count the valid number of samples in the alignment. Default: [0.05]',
-                        type = float,
-                        default = 0.05)
  
     landscape_parser.add_argument('-nproc',
                         '--number_of_processors',
@@ -88,15 +80,34 @@ def add_landscape_options(subparsers):
 
     landscape_parser.add_argument('-ns',
                         '--number_of_samples',
-                        help = 'Specify the minimum number of samples passing defined missing info cutoff to select the child alignment. Default: [0.0]',
+                        help = 'Specify the minimum number of samples with <10 percent missing information to select the child alignment. Default: [1]',
                         type = float,
                         default = 1)
 
-    landscape_parser.add_argument('-snv_density',
+    landscape_parser.add_argument('-l',
+                        '--minimum_length',
+                        help = 'Specify the minimum length of a child alignment to be selected. default: [100]',
+                        type = int,
+                        default = 100)
+
+    landscape_parser.add_argument('-mi',
+                        '--maximum_missing_information',
+                        help = 'Specify the minimum missing information of a child alignment to be selected. default: [1.0]',
+                        type = float,
+                        default = 1.0)
+
+
+    landscape_parser.add_argument('-snv_density_max',
                         '--maximum_snv_density',
                         help = 'Specify the maximum SNV density for selecting a child alignment in order to exclude hypervariable regions. default: [1.0]',
                         type = float,
                         default = 1)
+
+    landscape_parser.add_argument('-snv_density_min',
+                        '--minimum_snv_density',
+                        help = 'Specify the minimum SNV density for selecting a child alignment in order to exclude hypervariable regions. default: [0.0]',
+                        type = float,
+                        default = 0.0)
 
     landscape_parser.add_argument('-Pdist_mean',
                         '--average_pairwise_distances',
@@ -112,9 +123,8 @@ def add_landscape_options(subparsers):
     
     landscape_parser.add_argument('-f',
                         '--feature',
-                        help = 'Specify the types [CDS, tRNA, nCDS] to select.\
-                         If more than one type comma should be used to delimit.\
-                        e.g. CDS,tRNA,non_CDS: Output all kinds of alignment.',
+                        help = 'Specify the types [CDS, tRNA, nCDS] to select. If more than one type comma should be used to delimit.\
+                        e.g. CDS,tRNA,nCDS: Output all kinds of alignment.',
                         type = str,
                         default = 'CDS,tRNA,nCDS')
     
@@ -187,7 +197,7 @@ def tailoring_cols(Seq_dict, c):
         core_seq = itemgetter(*core_col)(seq_lst)
         seq = "".join(core_seq)
         _id = g
-        rec_list.append(SeqRecord(Seq(seq, generic_dna), id = _id, description = ''))
+        rec_list.append(SeqRecord(Seq(seq), id = _id, description = ''))
 
     return rec_list
 
@@ -204,7 +214,7 @@ class tailor(object):
         selected_aln = []
         for i in Seq_dict:
             if i in short_list:
-                selected_aln.append(SeqRecord(Seq(str(Seq_dict[i].seq), generic_dna), i, description = ''))
+                selected_aln.append(SeqRecord(Seq(str(Seq_dict[i].seq)), i, description = ''))
             else:
                 continue
         if c:
@@ -359,7 +369,7 @@ class ChildAlnStats(object):
 
 
     def missing_value(self):
-        if self.aln_len() >= 10:
+        if self.aln_len() >= 20:
             init = ''
             for i in self.child_aln_obj:
                 init += i.seq
@@ -368,7 +378,7 @@ class ChildAlnStats(object):
             return gaps/tot_len
         else:
             return 'NA'
-    def no_sample_minimum_samples(self, mv = 0.05):
+    def no_sample_minimum_samples(self, mv = 0.1):
         # Count the number of samples with minimum missing information
         # in each child alignment. Default: [0.05]
         if self.aln_len() >= 20:
@@ -445,18 +455,18 @@ def aln_filter(a_tab, par_tuple):
     # So here adds a parameter control to make sure inputs are within bounds
 
 
-  type_, Length, SNV, SNV_density_max, SNV_density_min, missing_value, mini_sample, avg_dist, stdv_dist, cor, tm_dist = par_tuple
+  type_, Length, SNV_density_max, SNV_density_min, missing_value, mini_sample, avg_dist, stdv_dist = par_tuple
+  
   type_ = type_check(type_)
+  
   len_range = (min(list(a_tab['Length'])), max(list(a_tab['Length'])))
-  SNV_range = (min(list(a_tab['#SNV'])), max(list(a_tab['#SNV'])))
   SNV_density_range = (min(list(a_tab['SNV_density'])), max(list(a_tab['SNV_density'])))
   missing_value_range = (min(list(a_tab['Missing_value'])), max(list(a_tab['Missing_value'])))
-  mini_sample_range = (min(list(a_tab['#Samples(missing information < 5%)'])),\
-   max(list(a_tab['#Samples(missing information < 5%)'])))
-  avg_dict_range = (min(list(a_tab['Avg_genetic_distance'])), max(list(a_tab['Avg_genetic_distance'])))
-  stdv_dict_range = (min(list(a_tab['Stdv_genetic_distance'])), max(list(a_tab['Stdv_genetic_distance'])))
+  mini_sample_range = (min(list(a_tab['#Samples(missing information < 10%)'])),\
+   max(list(a_tab['#Samples(missing information < 10%)'])))
+  avg_dict_range = (min(list(a_tab['Avg_genetic_distances'])), max(list(a_tab['Avg_genetic_distances'])))
+  stdv_dict_range = (min(list(a_tab['Stdv_genetic_distances'])), max(list(a_tab['Stdv_genetic_distances'])))
   if any( [Length > len_range[1],\
-           SNV > SNV_range[1],\
            SNV_density_max < SNV_density_range[0],\
            missing_value < missing_value_range[0],\
            mini_sample > mini_sample_range[1],\
@@ -464,13 +474,12 @@ def aln_filter(a_tab, par_tuple):
            stdv_dist < stdv_dict_range[0]] ):
       sys.exit("Please be aware the range:\n\
              Length: {} - {}\n\
-             #SNV: {} - {}\n\
              SNV density: {} - {}\n\
              Missing value: {} - {}\n\
              #Sample(missing value < 5 percent): {} - {}\n\
              Average distance: {} - {}\n\
              Stdv of average distance: {} - {}".format(len_range[0], len_range[1],\
-                SNV_range[0], SNV_range[1], SNV_density_range[0], SNV_density_range[1],\
+                SNV_density_range[0], SNV_density_range[1],\
                 missing_value_range[0], missing_value_range[1], mini_sample_range[0],\
                 mini_sample_range[1], avg_dict_range[0], avg_dict_range[1],\
                 stdv_dict_range[0], stdv_dict_range[1]))
@@ -478,41 +487,53 @@ def aln_filter(a_tab, par_tuple):
   else:
       a_tab = a_tab.loc[a_tab['Length'] >= Length]
       a_tab = a_tab.loc[(a_tab['Type'] == type_[0]) | (a_tab['Type'] == type_[1]) | (a_tab['Type'] == type_[2])]
-      a_tab = a_tab.loc[a_tab['#SNV'] >= SNV]
       a_tab = a_tab.loc[(a_tab['SNV_density'] <= SNV_density_max) & (a_tab['SNV_density'] >= SNV_density_min)]
       a_tab = a_tab.loc[a_tab['Missing_value'] <= missing_value]
-      a_tab = a_tab.loc[a_tab['#Samples(missing information < 5%)'] >= mini_sample]
-      a_tab = a_tab.loc[a_tab['Avg_genetic_distance'] <= avg_dist]
-      a_tab = a_tab.loc[a_tab['Stdv_genetic_distance'] <= stdv_dist]
-      a_tab = a_tab.loc[(a_tab['correlation'] >= cor) | (a_tab['correlation'].isnull())]
-      a_tab = a_tab.loc[a_tab['avg_time_measured_dist'] <= tm_dist]
+      a_tab = a_tab.loc[a_tab['#Samples(missing information < 10%)'] >= mini_sample]
+      a_tab = a_tab.loc[a_tab['Avg_genetic_distances'] <= avg_dist]
+      a_tab = a_tab.loc[a_tab['Stdv_genetic_distances'] <= stdv_dist]
 
       return a_tab  
 
-def Assessment_tab(gff3):
-    
+def Assessment_tab(wga_aln, gff3, nproc):
+    sys.stdout.write("{} Start parsing gff3 file.....\n".format(time_now()))
     gContent_db = parse_gff(wga_aln, gff3)
+    sys.stdout.write("{} Parsing is completed!\n".format(time_now()))
+
     nCDS_length = [len(gContent_db[i].Child_aln[1,:]) for i in gContent_db if i.startswith('nCDS')]
     coding_percent = str(100*(1 - sum(nCDS_length)/len(wga_aln[1,:])))+'%'
     label_aln_pairs = [(i, gContent_db[i].Child_aln) for i in gContent_db]
     
+    sys.stdout.write("{} Assess lengths of partitioned alignments....\n".format(time_now()))
     len_dict = {a: ChildAlnStats(gContent_db[a].Child_aln).aln_len() for a in gContent_db}
-    vs_dict = multi_proc_dict(args.number_of_processors, multi_variable_sites, label_aln_pairs)
-    mv_dict = {a: ChildAlnStats(gContent_db[a].Child_aln).missing_value() for a in gContent_db}  
-    no_samples_min_mv_dict = {a: ChildAlnStats(gContent_db[a].Child_aln).no_sample_minimum_samples(args.minimum_missing_information)\
+    sys.stdout.write("{} Length assessment is completed!\n".format(time_now()))
+    
+    sys.stdout.write("{} Assess snv density for each partitioned alignment....\n".format(time_now()))
+    vs_dict = multi_proc_dict(nproc, multi_variable_sites, label_aln_pairs)
+    sys.stdout.write("{} snv density assessment is completed!\n".format(time_now()))
+    
+    sys.stdout.write("{} Assess missing information in each partitioned alignment....\n".format(time_now()))
+    mv_dict = {a: ChildAlnStats(gContent_db[a].Child_aln).missing_value() for a in gContent_db}
+    sys.stdout.write("{} Missing information assessment is completed!\n".format(time_now()))
+    
+    sys.stdout.write("{} Assess the number of samples in the partitioned alignment having missing information < 10%\n".format(time_now()))
+    no_samples_min_mv_dict = {a: ChildAlnStats(gContent_db[a].Child_aln).no_sample_minimum_samples(0.1)\
      for a in gContent_db}
-    avg_pwd_dict = multi_proc_dict(args.number_of_processors, multi_dist, label_aln_pairs)
+    sys.stdout.write("{} #Samples assessment is completed!\n".format(time_now()))
+
+    sys.stdout.write("{} Assess average pairwise genetic distances for each partitioned alignment....\n".format(time_now()))
+    avg_pwd_dict = multi_proc_dict(nproc, multi_dist, label_aln_pairs)
+    sys.stdout.write("{} Genetic assessment is completed!\n".format(time_now()))
         # {'label': (mean, stdv)}                
-    label_aln_td_lst = [(i, gContent_db[i].Child_aln, time_diff_lst) for i in gContent_db]
+
     dict_lst_BigMatrix = defaultdict(list)            
 
     for label in gContent_db:
+
         if len_dict[label] >= 100: 
             dict_lst_BigMatrix[label].append([label, gContent_db[label].Type, gContent_db[label].Function, len_dict[label],\
-             dict_judge(label, vs_dict)[0], dict_judge(label, vs_dict)[1], \
-                dict_judge(label, mv_dict), dict_judge(label, no_samples_min_mv_dict),\
-                dict_judge(label, avg_pwd_dict)[0], dict_judge(label, avg_pwd_dict)[1],\
-                dict_judge(label, avg_tm_pwd_dict)[0], dict_judge(label, avg_tm_pwd_dict)[1]])            
+             dict_judge(label, vs_dict)[1], dict_judge(label, mv_dict), dict_judge(label, no_samples_min_mv_dict),\
+                dict_judge(label, avg_pwd_dict)[0], dict_judge(label, avg_pwd_dict)[1]])            
     
     return dict_lst_BigMatrix
 
@@ -527,20 +548,23 @@ def create_folder(name):
     return folder_name
 
 def run_raxml(ipt_aln, nproc, opt_dir):
-    opt_name = ipt_aln.replace('fna', '')
-    cmd = 'raxmlHPC -T {} -f a -# 100 -p 12345 -x 12345 -s {} -m GTRGAMMA -n {} -w {}'.format(nproc, ipt_aln, opt_name, opt_dir)
+
+    opt_name = ipt_aln.split('/')[-1].replace('.fna', '')
+    cmd = 'raxmlHPC-PTHREADS-SSE3 -T {} -f a -# 100 -p 12345 -x 12345 -s {} -m GTRGAMMA -n {} -w {}'.format(nproc, ipt_aln, opt_name, opt_dir)
+    sys.stdout.write('{} {}'.format(time_now(), cmd))
     subprocess.call(cmd, shell = True)
 
-    return 'RAxML_bipartitions.' + opt_name
+    return opt_dir + '/RAxML_bipartitions.' + opt_name
 
 def visual(tab, opt):
     df_ = pd.read_csv(tab, sep = '\t')
     v1 = df_['Length']
     v2 = df_['SNV_density']
     v3 = df_['Missing_value']
-    v4 = df_['#Samples(missing information < 5%)'].dropna().astype(int)
-    v5 = df_['correlation'].dropna()
-    v6 = df_['avg_time_measured_dist']
+    v4 = df_['#Samples(missing information < 10%)'].dropna().astype(int)
+    v5 = df_['Avg_genetic_distances']
+    v6 = df_['Stdv_genetic_distances']
+
 
 
 
@@ -552,32 +576,51 @@ def visual(tab, opt):
     spec = gridspec.GridSpec(ncols=3, nrows=2, figure=fig)
     fig_ax1 = fig.add_subplot(spec[0, 0])
     fig_ax1.set_xlabel('Length (bp)', fontsize=16)
+    fig_ax1.set_ylabel('Count', fontsize = 16)
     fig_ax1.tick_params(axis='both', which='major', labelsize=13)
     hist_plot(fig_ax1, v1, {'bins': 200})
+    
     fig_ax2 = fig.add_subplot(spec[0, 1])
     fig_ax2.set_xlabel('SNV density', fontsize=16)
+    fig_ax2.set_ylabel('Count', fontsize = 16)
     fig_ax2.tick_params(axis='both', which='major', labelsize=13)
     hist_plot(fig_ax2, v2, {'bins': 200})
+    
     fig_ax3 = fig.add_subplot(spec[0, 2])
     fig_ax3.set_xlabel('Gap score', fontsize=16)
+    fig_ax3.set_ylabel('Count', fontsize = 16)
     fig_ax3.tick_params(axis='both', which='major', labelsize=13)
     hist_plot(fig_ax3, v3, {'bins': 200})
+    
     fig_ax4 = fig.add_subplot(spec[1, 0])
-    fig_ax4.set_xlabel('#Samples (Gap score < 1%)', fontsize=16)
-    fig_ax4.set_ylabel('CDF (Cumulative distribution frequency)', fontsize=16)
-    fig_ax4.tick_params(axis='both', which='major', labelsize=13)
-    hist_plot(fig_ax4, v4, {'bins': v4.max(), 'histtype': 'step', 'cumulative': True})        
+    fig_ax4.set_xlabel('#Samples (Gap score < 10%)', fontsize = 16)
+    fig_ax4.set_ylabel('CDF (Cumulative distribution frequency)', fontsize = 16)
+    fig_ax4.tick_params(axis = 'both', which = 'major', labelsize = 13)
+    hist_plot(fig_ax4, v4, {'bins': v4.max(), 'histtype': 'step', 'cumulative': True})
+
     fig_ax5 = fig.add_subplot(spec[1, 1])
-    fig_ax5.set_xlabel('Correlation efficient (Genetic distance X Time difference)', fontsize=14)
-    fig_ax5.tick_params(axis='both', which='major', labelsize=13)
+    fig_ax5.set_xlabel('Average pairwise genetic distances', fontsize = 16)
+    fig_ax5.set_ylabel('Count', fontsize = 16)
+    fig_ax5.tick_params(axis = 'both', which = 'mahor', labelsize = 13)
     hist_plot(fig_ax5, v5, {'bins': 200})
+
     fig_ax6 = fig.add_subplot(spec[1, 2])
-    fig_ax6.set_xlabel('Average genetic distance (time-weighted)', fontsize=14)
+    fig_ax6.set_xlabel('Standard deviation of pairwise genetic distances', fontsize = 16)
+    fig_ax6.set_ylabel('Count', fontsize = 16)
+    fig_ax6.tick_params(axis = 'both', which = 'mahor', labelsize = 13)
     hist_plot(fig_ax6, v6, {'bins': 200})
+
+
 
 
     fig.savefig(opt)
 
+def time_now():
+
+    now = datetime.now()
+    current_time = now.strftime("[%H:%M:%S]")
+
+    return current_time
 
 def main():
 
@@ -633,53 +676,68 @@ def main():
         file_name = opt_dir + '/assessment.txt'
         opt_file_name = open(file_name, 'w')
 
-        opt_file_name.write('Child_alignment\t' + 'Type\t'+ 'Function\t' + 'Length\t' + '#SNV\t' + 'SNV_density\t'\
-          + 'Missing_value\t' + '#Samples(missing information < 5%)\t'+'Avg_genetic_distance\t'\
-          + 'Stdv_genetic_distance' + '\t' + 'correlation'+'\t'+'avg_time_measured_dist'+'\n')
+        opt_file_name.write('Child_alignment\t' + 'Type\t'+ 'Function\t' + 'Length\t' + 'SNV_density\t'\
+          + 'Missing_value\t' + '#Samples(missing information < 10%)\t'+'Avg_genetic_distances\t'\
+          + 'Stdv_genetic_distances' + '\n')
 
         if args.gff3_annotation:
+            sys.stdout.write("{} The given annotation profile: {}\n".format(time_now(), args.gff3_annotation))
 
-            dict_lst_BigMatrix = Assessment_tab(args.gff3_annotation)
+            dict_lst_BigMatrix = Assessment_tab(wga_aln, args.gff3_annotation, args.number_of_processors)
         
         else:
+            sys.stdout.write("{} No gff3 file is given, so automated annotation starts.....\n".format(time_now()))
 
             opt_RefSeq = random.choice([i for i in wga_aln if i.seq.count('-') == 0])
+            sys.stdout.write('{} The most complete genome {} is chosen from the alignment for annotation.\n'.format(time_now(), opt_RefSeq.id))
+            opt_RefSeq_abs = os.path.abspath(args.opt_dir + '/'+ opt_RefSeq.id)
+            SeqIO.write(opt_RefSeq, opt_RefSeq_abs, 'fasta')
+            sys.stdout.write('{} The genome sequence for annotation is in: {}\n'.format(time_now(), opt_RefSeq_abs))
             
-            SeqIO.write(opt_RefSeq, opt_RefSeq.id, 'fasta')
-            
-            RefSeq_file = args.opt_dir + '/{}'.format(opt_RefSeq.id)
-            prokka_opt_dir = args.opt_dir + '/{}'.format(opt_RefSeq.id) + '.prokka'
+            prokka_opt_dir = os.path.abspath(args.opt_dir + '/{}'.format(opt_RefSeq.id) + '.prokka')
+
             prokka_file_prefix = opt_RefSeq.id
 
-            cmd = 'prokka {} --outdir {} --prefix {}'.format(RefSeq_file, prokka_opt_dir, prokka_file_prefix)
+            cmd = 'prokka {} --outdir {} --prefix {}'.format(opt_RefSeq_abs, prokka_opt_dir, prokka_file_prefix)
+            sys.stdout.write('{} prokka annotation starts:\n'.format(time_now()))
+            sys.stdout.write(time_now() + ' ' + cmd + '\n')
             subprocess.call(cmd, shell = True)
-            gff3_annotation_file = opt_RefSeq.id + '.prokka/' + prokka_file_prefix + '.gff'
-
-            dict_lst_BigMatrix = Assessment_tab(gff3_annotation_file)
-            subprocess.call('rm {}'.format(RefSeq_file), shell = True)
-            subprocess.call('rm {}'.format(prokka_opt_dir), shell = True)
+            gff3_annotation_file = os.path.abspath(prokka_opt_dir + '/' + prokka_file_prefix + '.gff')
+            sys.stdout.write('{} The resulted annotation file: {}\n'.format(time_now(), gff3_annotation_file))
+            
+            dict_lst_BigMatrix = Assessment_tab(wga_aln, gff3_annotation_file, args.number_of_processors)
+            subprocess.call('rm {}'.format(opt_RefSeq_abs), shell = True)
+            subprocess.call('rm -rf {}'.format(prokka_opt_dir), shell = True)
         
+        sys.stdout.write('{} Start outputting assessed results....\n'.format(time_now()))
         for aln in dict_lst_BigMatrix:
             write_in_lines = "\t".join(conv_2_str(dict_lst_BigMatrix[aln][0]))
             opt_file_name.write(write_in_lines + '\n')
+        sys.stdout.write('{} Assessment is completed and output is in: {}\n'.format(time_now(), file_name))
         
         opt_file_name.close()
 
         opt_stats = opt_dir + '/assess_stats.png'
 
+        sys.stdout.write('{} Start visualizing assessment....\n'.format(time_now()))
         visual(file_name, opt_stats)
+        sys.stdout.write('{} Visualization is completed and output is in: {}\n'.format(time_now(), opt_stats))
 
         if args.select:
+            sys.stdout.write("{} Start selecting prefered regions....\n".format(time_now()))
             tab_df = pd.read_csv(file_name, sep = '\t')
             feature_ = args.feature.split(',')
-            pars = (feature_, args.length, args.variable_sites, args.variable_sites_density_max,\
-                    args.minimum_missing_information, args.number_of_samples, args.average_pairwise_distances,\
+            pars = (feature_, args.minimum_length, args.maximum_snv_density, args.minimum_snv_density,\
+                    args.maximum_missing_information, args.number_of_samples, args.average_pairwise_distances,\
                     args.pairwise_distances_stdv)
 
-            selected_alns = aln_filter(tab_df, pars)
 
-            concatenate_selected_alns = args.opt_dir + '/selected_region_concatenation.fna'
+            selected_alns = aln_filter(tab_df, pars)
+            sys.stdout.write('{} Selecting is completed.\n'.format(time_now()))
+
+            concatenate_selected_alns = os.path.abspath(args.opt_dir + '/selected_region_concatenation.fna')
             
+            sys.stdout.write('{} Concatenation starts....\n'.format(time_now()))
             init_aln = wga_aln[:, 0:1]
             for i in selected_alns.index:
                 aln_header = selected_alns.loc[i,:]["Child_alignment"]
@@ -688,23 +746,22 @@ def main():
                 init_aln += sub_aln
             init_aln = init_aln[:, 1:]
             SeqIO.write(init_aln, concatenate_selected_alns, 'fasta')
+            sys.stdout.write('{} Concatenation is finished and the output is in: {}\n'.format(time_now(), concatenate_selected_alns))
 
             if args.raxml_tree:
+                sys.stdout.write('{} Start inferring maximum likelihood tree....\n'.format(time_now()))
                 opt_dir = create_folder(args.opt_dir + '/raxml')
-
-                best_tree = run_raxml(concatenate_selected_alns, args.nproc, opt_dir)
+                best_tree = run_raxml(concatenate_selected_alns, args.number_of_processors, opt_dir)
+                sys.stdout.write('{} RAxML tree reconstruction is completed and outputs are in: {}\n'.format(time_now(), opt_dir))
 
                 if args.fast_temporal_signal_test:
+                    sys.stdout.write('{} Start fast estimation of temporal signal.....\n'.format(time_now()))
+                    sys.stdout.write('{} Use raxml tree from: {}\n'.format(time_now(), best_tree))
                     opt_png = concatenate_selected_alns.replace('.fna', '') + '_TempEst.png'
-                    mp_file = args.fast_temporal_signal_est
+                    mp_file = args.fast_temporal_signal_test
                     PreClock_LRM.temp_est(best_tree, mp_file, opt_png)
 
 
 
 if __name__ == '__main__':
     main()
-
-
-
-
-
