@@ -48,6 +48,10 @@ __version__ = "0.1"
 __date__ = "21.01.2021"
 
 
+log_config = "/".join(os.path.abspath(__file__).split('/')[:-1]) + '/metaclock_configs/logging_config.ini'
+fileConfig(log_config)
+logger = logging.getLogger()
+
 def read_args(args):
 
     parser = argparse.ArgumentParser()
@@ -632,9 +636,6 @@ def blastn_nproc(nproc):
 
 
 def main():
-
-    fileConfig('metaclock_configs/logging_config.ini')
-    logger = logging.getLogger()
     
     pars = read_args(sys.argv)
     alns = abspath_finder(pars['alns_folder'])

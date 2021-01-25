@@ -37,7 +37,9 @@ import matplotlib.gridspec as gridspec
 from operator import itemgetter
 from logging.config import fileConfig
 
-
+log_config = "/".join(os.path.abspath(__file__).split('/')[:-1]) + '/metaclock_configs/logging_config.ini'
+fileConfig(log_config)
+logger = logging.getLogger()
 
 def add_landscape_options(subparsers):
 
@@ -164,7 +166,8 @@ def add_basic_options(subparsers):
     basic_parser.add_argument('-s',
                     "--stats",
                     help = "Specify a file name for statistic report of tailored alignment.",
-                    type = str)
+                    type = str,
+                    default = 'stats.tsv')
 
     basic_parser.add_argument('-tt',
                     "--target_tailoring",
@@ -494,34 +497,34 @@ def aln_filter(a_tab, par_tuple):
       return a_tab  
 
 def Assessment_tab(wga_aln, gff3, nproc):
-    logger.info("{} Start parsing gff3 file.....\n".format(time_now()))
+    logger.info("Start parsing gff3 file.....")
     gContent_db = parse_gff(wga_aln, gff3)
-    logger.info("{} Parsing is completed!\n".format(time_now()))
+    logger.info("Parsing is completed!")
 
     nCDS_length = [len(gContent_db[i].Child_aln[1,:]) for i in gContent_db if i.startswith('nCDS')]
     coding_percent = str(100*(1 - sum(nCDS_length)/len(wga_aln[1,:])))+'%'
     label_aln_pairs = [(i, gContent_db[i].Child_aln) for i in gContent_db]
     
-    logger.info("{} Assess lengths of partitioned alignments....\n".format(time_now()))
+    logger.info("Assess lengths of partitioned alignments....")
     len_dict = {a: ChildAlnStats(gContent_db[a].Child_aln).aln_len() for a in gContent_db}
-    logger.info("{} Length assessment is completed!\n".format(time_now()))
+    logger.info("Length assessment is completed!")
     
-    logger.info("{} Assess snv density for each partitioned alignment....\n".format(time_now()))
+    logger.info("Assess snv density for each partitioned alignment....")
     vs_dict = utils.multi_proc_dict(nproc, multi_variable_sites, label_aln_pairs)
-    logger.info("{} snv density assessment is completed!\n".format(time_now()))
+    logger.info("snv density assessment is completed!")
     
-    logger.info("{} Assess missing information in each partitioned alignment....\n".format(time_now()))
+    logger.info("Assess missing information in each partitioned alignment....")
     mv_dict = {a: ChildAlnStats(gContent_db[a].Child_aln).missing_value() for a in gContent_db}
-    logger.info("{} Missing information assessment is completed!\n".format(time_now()))
+    logger.info("Missing information assessment is completed!")
     
-    logger.info("{} Assess the number of samples in the partitioned alignment having missing information < 10%\n".format(time_now()))
+    logger.info("Assess the number of samples in the partitioned alignment having missing information < 10%")
     no_samples_min_mv_dict = {a: ChildAlnStats(gContent_db[a].Child_aln).no_sample_minimum_samples(0.1)\
      for a in gContent_db}
-    logger.info("{} #Samples assessment is completed!\n".format(time_now()))
+    logger.info("#Samples assessment is completed!")
 
-    logger.info("{} Assess average pairwise genetic distances for each partitioned alignment....\n".format(time_now()))
+    logger.info("Assess average pairwise genetic distances for each partitioned alignment....")
     avg_pwd_dict = utils.multi_proc_dict(nproc, multi_dist, label_aln_pairs)
-    logger.info("{} Genetic assessment is completed!\n".format(time_now()))
+    logger.info("Genetic assessment is completed!")
         # {'label': (mean, stdv)}                
 
     dict_lst_BigMatrix = defaultdict(list)            
@@ -549,7 +552,7 @@ def run_raxml(ipt_aln, nproc, opt_dir):
 
     opt_name = ipt_aln.split('/')[-1].replace('.fna', '')
     cmd = 'raxmlHPC-PTHREADS-SSE3 -T {} -f a -# 100 -p 12345 -x 12345 -s {} -m GTRGAMMA -n {} -w {}'.format(nproc, ipt_aln, opt_name, opt_dir)
-    sys.stdout.write('{} {}'.format(time_now(), cmd))
+    logger.info('{}'.format(cmd))
     subprocess.call(cmd, shell = True)
 
     return opt_dir + '/RAxML_bipartitions.' + opt_name
@@ -613,21 +616,12 @@ def visual(tab, opt):
 
     fig.savefig(opt)
 
-def time_now():
-
-    now = datetime.now()
-    current_time = now.strftime("[%H:%M:%S]")
-
-    return current_time
 
 def main():
 
     parser = argparse.ArgumentParser('basic', 'landscape')
     subparsers = parser.add_subparsers(help = 'program mode', dest = 'mode')
-
-    fileConfig('metaclock_configs/logging_config.ini')
-    logger = logging.getLogger()
-
+    
     add_basic_options(subparsers)
     add_landscape_options(subparsers)
     
@@ -665,7 +659,6 @@ def main():
             subprocess.call('mv TrimalGappyout_opt.fna {}'.format(args.opt), shell = True)
             logger.info("Thanks for using and welcome back!")
             utils.out_stats(args.opt, opt_stats = args.stats)
-            logger.info("Thanks for using and welcome back!")
 
         else:
             sys.exit('Please choose one of these tailor strategies: automated tailoring or target tailoring.')
@@ -701,7 +694,7 @@ def main():
 
             cmd = 'prokka {} --outdir {} --prefix {}'.format(opt_RefSeq_abs, prokka_opt_dir, prokka_file_prefix)
             logger.info('prokka annotation starts:')
-            sys.stdout.write(time_now() + ' ' + cmd + '\n')
+            logger.info(cmd)
             subprocess.call(cmd, shell = True)
             gff3_annotation_file = os.path.abspath(prokka_opt_dir + '/' + prokka_file_prefix + '.gff')
             logger.info('The resulted annotation file: {}'.format(gff3_annotation_file))

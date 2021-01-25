@@ -104,9 +104,9 @@ class stats(object):
         else:
                 return "0"
 
-def out_stats(fna_file, output_dir=os.getcwd(), opt_stats='Mac_stats.tsv'):
+def out_stats(fna_file, opt_stats= 'stats.tsv'):
     seqio_dict = SeqIO.to_dict(SeqIO.parse(fna_file, "fasta"))
-    opt_file = output_dir + '/' + opt_stats
+    opt_file = opt_stats
     opt = open(opt_file,"w")
     opt.write("SeqHeader\t"+ "GapRatio\t" + "AlignLength\t" + "SeqLength\t" +"GCcontent\n")
     for seq in seqio_dict:

@@ -27,6 +27,12 @@ from Bio import AlignIO
 from Bio.Align import MultipleSeqAlignment
 
 
+log_config = "/".join(os.path.abspath(__file__).split('/')[:-1]) + '/metaclock_configs/logging_config.ini'
+fileConfig(log_config)
+logger = logging.getLogger()
+
+
+
 def validator(params):
     # check if required parameter provided
     try:
@@ -34,10 +40,10 @@ def validator(params):
     except KeyError:
         raise Exception('reference_genome not provided')
 
-    try:
-        sample = params['sample']
-    except KeyError:
-        raise Exception('sample not provided')
+    # try:
+    #     samples = params['parameter_set']['samples'][0]
+    # except KeyError:
+    #     raise Exception('sample not provided')
 
     # check `reads` mode data type
     if params.get('input_type') and type(params.get('input_type')) is not str:
@@ -87,8 +93,8 @@ def validator(params):
     if params.get('output_trimmed_reads') \
         and type(params.get('output_trimmed_reads')) is not int:
         raise TypeError("output_trimmed_reads should be int type")
-    if type(sample) is not str:
-        raise TypeError("sample should be str type")
+    # if type(samples) is not str:
+    #     raise TypeError("sample should be str type")
 
     # Check `contigs` mode data type
     if params.get('homolog_length') \
@@ -158,8 +164,6 @@ def main():
 
 
     # Config logger
-    fileConfig('metaclock_configs/logging_config.ini')
-    logger = logging.getLogger()
 
 
 
@@ -305,7 +309,9 @@ def main():
 
     output_file = opt_dir + '/' + opt_dir.split('/')[-1] +'.fna'
     Mac_final = merge_all(inter_results, ref_genome, output_file)
-    utils.out_stats(Mac_final, output_dir = opt_dir)
+
+    opt_stats = opt_dir + '/mac_stats.tsv'
+    utils.out_stats(Mac_final, opt_stats = opt_stats)
 
     if if_est_snv:
         nproc = configs_list[0]['parameter_set']['nproc']
@@ -935,13 +941,6 @@ def authenticate(intermediate_path, refseq, filtered_bams):
         C2T.append(mp_opt_dir + '/5pCtoT_freq.txt')
 
     return G2A, C2T
-
-def time_now():
-
-    now = datetime.now()
-    current_time = now.strftime("[%H:%M:%S]")
-
-    return current_time
 
 if __name__ == "__main__":
 
