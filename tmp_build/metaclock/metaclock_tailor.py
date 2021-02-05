@@ -174,6 +174,16 @@ def add_basic_options(subparsers):
                     help = "Input a list of samples to keep for alignment tailoring. The limit for missing info in each column can\
                      be given and it is delimited by comma (e.g. shortlist.txt,0.1), or column tailoring will be performed automatically using trimAl (e.g. list.txt).",
                     type = str)
+    basic_parser.add_argument('-raxml',
+                    '--raxml_output',
+                    help = 'Specify a folder name for storing ML phylogeny results. Default: None',
+                    type = str,
+                    default = None)
+    basic_parser.add_argument('-nproc',
+                    '--number_of_processors',
+                    help = 'Specify the number of processor to be used. default: [1]. Note: This is for running ML phylogeny.',
+                    type = int,
+                    default = 1)
 
 
     
@@ -649,6 +659,15 @@ def main():
                 subprocess.call('rm tmp_feed_to_trimal.fna', shell = True)
             if args.stats:
                 utils.out_stats(args.opt, args.stats)
+            
+            if args.raxml_output:
+                logger.info('Start inferring maximum likelihood tree....')
+                logger.info('ML phylogeny is output in: {}'.format(args.raxml_output))
+                opt_dir = create_folder(args.raxml_output)
+                run_raxml(args.opt, args.number_of_processors, opt_dir)
+                logger.info('RAxML tree reconstruction is completed and outputs are in: {}'.format(opt_dir))
+            else:
+                logger.info('ML phylogeny reconstruction was skipped!')
 
             logger.info("Thanks for using and welcome back!")
 
@@ -660,6 +679,16 @@ def main():
             logger.info("Thanks for using and welcome back!")
             utils.out_stats(args.opt, opt_stats = args.stats)
 
+            if args.raxml_output:
+                logger.info('Start inferring maximum likelihood tree....')
+                logger.info('ML phylogeny is output in: {}'.format(args.raxml_output))
+                opt_dir = create_folder(args.raxml_output)
+                run_raxml(args.opt, args.number_of_processors, opt_dir)
+                logger.info('RAxML tree reconstruction is completed and outputs are in: {}'.format(opt_dir))
+            else:
+                logger.info('ML phylogeny was skipped!')
+                
+            logger.info("Thanks for using and welcome back!")
         else:
             sys.exit('Please choose one of these tailor strategies: automated tailoring or target tailoring.')
 
