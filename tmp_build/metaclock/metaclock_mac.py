@@ -206,10 +206,6 @@ def build_db_file(mode, ref_genome, db_dir, samples):
     else:
         logger.info('Database of {} mode was skipped!'.format(mode))
 
-    # run the command
-    # TODO: exception handling
-
-
     return params['dest']
 
 
