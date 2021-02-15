@@ -1,30 +1,28 @@
 #!/usr/bin/env python
 
 
+import argparse
+import itertools
 import json
 import logging
-import sys
 import math
-import timeit
-import subprocess
-import argparse
 import os
-import itertools
-from data_types import AncientReadsType, ContigsType, ModernReadsType
-from .utils import utils
-from .utils import AlignStats
-from .utils import SNP_rates
-from collections import defaultdict
-import shutil
 import pysam
+import shutil
+import subprocess
+import sys
+import timeit
 
-from logging.config import fileConfig
+from collections import defaultdict
 from functools import partial
-from Bio import SeqIO
-from Bio.SeqRecord import SeqRecord
-from Bio.Seq import Seq
-from Bio import AlignIO
+from logging.config import fileConfig
+
+from Bio import SeqIO, AlignIO
 from Bio.Align import MultipleSeqAlignment
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+from data_types import AncientReadsType, ContigsType, ModernReadsType
+from .utils import utils, AlignStats, SNP_rates
 
 
 def main(args):
