@@ -158,7 +158,7 @@ def workflow(configs, if_clean, if_authenticate, opt_dir):
         if mode == 'reads':
             db_filenames = get_bowtie2_db_files(configs.intermediate, configs.reference_genome)
         elif mode == 'contigs':
-            db_filenames = get_blastn_db_files(configs.intermediate., configs.reference_genome)
+            db_filenames = get_blastn_db_files(configs.intermediate, configs.reference_genome)
 
         skip = True
         for db_filename in db_filenames['db_files']:
