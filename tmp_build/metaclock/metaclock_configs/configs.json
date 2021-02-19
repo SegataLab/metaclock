@@ -1,5 +1,5 @@
-[
-  {
+{
+  "ancient_reads": {
     "input_type":"reads",
     "reference_genome":"",
     "age_type":1,
@@ -18,7 +18,7 @@
       "output_trimmed_reads":0
     }
   },
-  {
+  "modern_reads": {
     "input_type":"reads",
     "reference_genome":"",
     "age_type":2,
@@ -35,7 +35,7 @@
       "dominant_allele_frequency":0.8
     }
   },
-  {
+  "contigs": {
     "input_type":"contigs",
     "reference_genome":"",
     "intermediate":"",
@@ -46,4 +46,4 @@
       "blastn_threads":10
     }
   }
-]
+}

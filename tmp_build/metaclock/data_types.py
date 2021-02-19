@@ -1,5 +1,6 @@
 class ContigsType(object):
     def __init__(self, reference_genome, samples, **kwargs):
+        self.input_type = 'contigs'
         self.reference_genome = reference_genome
         self.samples = samples
 
@@ -15,6 +16,24 @@ class ContigsType(object):
                                             'homolog_identity', 95.0)
         self.param_set['blastn_threads'] = param_set.get('blastn_threads', 6)
 
+        self.validate()
+
+    def validate(self):
+        if type(self.reference_genome) is not str:
+            raise TypeError("reference_genome should be str type")
+
+        if type(self.samples) is not str:
+            raise TypeError("samples should bd str type")
+
+        if type(self.param_set['homolog_length']) is not int:
+            raise TypeError("homolog_length should be an integer")
+
+        if type(self.param_set['homolog_identity']) is not float:
+            raise TypeError("homolog_length should be an float number")
+
+        if type(self.param_set['blastn_threads']) is not int:
+            raise TypeError("blastn_threads should be an integer")
+
 
 class ReadsType(object):
     def __init__(self, reference_genome, samples):
@@ -27,6 +46,9 @@ class ReadsType(object):
     def validate(self):
         if type(self.reference_genome) is not str:
             raise TypeError("reference_genome should be str type")
+
+        if type(self.samples) is not str:
+            raise TypeError("samples should bd str type")
 
 
 class AncientReadsType(ReadsType):
@@ -46,6 +68,8 @@ class AncientReadsType(ReadsType):
         self.param_set['trim_distance'] = kwargs.get('trim_distance', '5:5')
         self.param_set['dominant_allele_frequency'] = kwargs.get('dominant_allele_frequency', 0.8)
         self.param_set['output_trimmed_reads'] = kwargs.get('output_trimmed_reads', 0)
+
+        self.validate()
 
     def validate(self):
         super().validate()
@@ -105,6 +129,8 @@ class ModernReadsType(ReadsType):
         self.param_set['minimum_coverage'] = kwargs.get('minimum_coverage', 5)
         self.param_set['trim_distance'] = kwargs.get('trim_distance', '5:5')
         self.param_set['dominant_allele_frequency'] = kwargs.get('dominant_allele_frequency', 0.8)
+
+        self.validate()
 
     def validate(self):
         super().validate()

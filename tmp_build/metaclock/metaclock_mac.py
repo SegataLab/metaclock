@@ -43,6 +43,17 @@ def main(args):
     except Exception as e:
         logger.error(e)
 
+    dummy_data = {
+        'intermediate': '',
+        'reference_genome': '',
+        'sample': '',
+    }
+    if not configs_list.get('ancient_reads', None):
+        configs_list['ancient_reads'] = dummy_data
+    if not configs_list.get('modern_reads', None):
+        configs_list['modern_reads'] = dummy_data
+    if not configs_list.get('ancient_reads', None):
+        configs_list['contigs'] = dummy_data
 
     if args.intermediate_dir \
         or (not configs_list['ancient_reads']['intermediate'] \
@@ -53,6 +64,7 @@ def main(args):
             inters = create_folder(args.intermediate_dir)
         else:
             inters = create_folder('intermediates')
+
         # Add absolute path of intermediate folder to sample processing job
         configs_list['ancient_reads']['intermediate'] = inters
         configs_list['modern_reads']['intermediate'] = inters
@@ -93,7 +105,7 @@ def main(args):
         # all samples' abs paths from parsed args and store them in a list,
         # and overwrites config with a list of sample paths.
         configs_list['modern_reads'] = obtain_samples(args.modern_metagenomes)
-    elif len(configs_list[1]['samples']) != 0:
+    elif len(configs_list['modern_reads']['samples']) != 0:
         # If the path is given by config file, it obtains
         # all samples' abs paths from path written in
         # config file and store them in a list,
@@ -120,6 +132,8 @@ def main(args):
         'modern_reads': ModernReadsType,
     }
     for k,v in configs_list.items():
+        if not v.get('param_set', None):
+            continue
         configs = str_to_class[k](v)
         dest = workflow(configs, if_clean, if_authenticate, opt_dir)
         inter_results.extend(dest)
