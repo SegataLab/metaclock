@@ -47,13 +47,10 @@ class ReadsType(object):
         if type(self.reference_genome) is not str:
             raise TypeError("reference_genome should be str type")
 
-        if type(self.samples) is not str:
-            raise TypeError("samples should bd str type")
-
 
 class AncientReadsType(ReadsType):
-    def __init__(self, reference_genome, samples, **kwargs):
-        super().__init__(reference_genome, samples)
+    def __init__(self, **kwargs):
+        super().__init__(kwargs['reference_genome'], kwargs['samples'])
 
         self.age_type = 1
         self.intermediate = kwargs.get('intermediate', 'intermediates')
@@ -114,8 +111,8 @@ class AncientReadsType(ReadsType):
 
 
 class ModernReadsType(ReadsType):
-    def __init__(self, reference_genome, samples, **kwargs):
-        super().__init__(reference_genome, samples)
+    def __init__(self, **kwargs):
+        super().__init__(kwargs['reference_genome'], kwargs['samples'])
 
         self.age_type = 2
         self.intermediate = kwargs.get('intermediate', 'intermediates')

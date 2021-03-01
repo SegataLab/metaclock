@@ -192,7 +192,7 @@ def main():
         print(k, '----', v)
         if not v.get('parameter_set', None):
             continue
-        configs = str_to_class[k](v)
+        configs = str_to_class[k](**v)
         print(configs)
         dest = workflow(configs, if_clean, if_authenticate, opt_dir)
         inter_results.extend(dest)
