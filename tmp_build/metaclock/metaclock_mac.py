@@ -21,13 +21,70 @@ from Bio import SeqIO, AlignIO
 from Bio.Align import MultipleSeqAlignment
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
-from data_types import AncientReadsType, ContigsType, ModernReadsType
+from .utils.data_types import AncientReadsType, ContigsType, ModernReadsType
 from .utils import utils, AlignStats, SNP_rates
 
+log_config = "/".join(os.path.abspath(__file__).split('/')[:-1]) + '/metaclock_configs/logging_config.ini'
+fileConfig(log_config)
+logger = logging.getLogger()
 
-def main(args):
+
+def main():
     # If the if_clean is True, we skip creation of DB files and bam files if
     # they exist.
+
+    parser = argparse.ArgumentParser(description = 'Reconstruct whole-genome-level MSA from large-scale datasets.')
+    parser.add_argument('config_file', help='Input the configuration file.')
+    parser.add_argument('-r',
+                        '--reference',
+                        help='Input reference genome sequence in the fasta format.',
+                        type = str,
+                        default = None)
+    parser.add_argument('-a_ipt',
+                        '--ancient_metagenomes',
+                        help = 'Input an ancient-metagenome folder containing sub-folders, each sub-folder \
+                        contains sequencing reads from one ancient sample. [Support suffix of .fastq/.fastq.gz/.fastq.bz2]',
+                        type = str,
+                        default = None)
+    parser.add_argument('-m_ipt',
+                        '--modern_metagenomes',
+                        help = 'Input a modern-metagenome folder containing sub-folders, each sub-folder \
+                        contains sequencing reads from one modern sample. [Support suffix of .fastq/.fastq.gz/.fastq.bz2]',
+                        type = str,
+                        default = None)
+    parser.add_argument('-g_ipt',
+                        '--genome_assemlies',
+                        help = 'Input a genome-assemblies folder containing assembled genomes, each assembled \
+                        genome is stored in a fasta file. [Support FASTA format]',
+                        type = str,
+                        default = None)
+    parser.add_argument('-o',
+                        '--output_dir',
+                        help = 'Specify an output folder for storing results. Default: [Mac_output] in the working directory.',
+                        default = 'Mac_output')
+
+    parser.add_argument('-int',
+                        '--intermediate_dir',
+                        help = 'Specify an intermediate folder for storing intermediate files. Default: [intermediates] in the working directory.',
+                        default = None)
+    parser.add_argument('-c',
+                        '--clean',
+                        help='Clean intermediate files and rerun from the beginning, \
+                        otherwise rerun from the intermediate files',
+                        action='store_true')
+    parser.add_argument('-a',
+                        '--authentication',
+                        help='Autheticate the anicent origin of genomic information used in genome reconstruction.',
+                        action='store_true')
+    parser.add_argument('-snv_rate',
+                        '--SNV_rate',
+                        help='Estimate pairwise SNV rates between samples.',
+                        action='store_true')
+
+    args = parser.parse_args()
+
+
+
     if_clean = args.clean
     logger.info("Clean intermediate files: {}".format(if_clean))
     if_est_snv = args.SNV_rate
@@ -46,13 +103,13 @@ def main(args):
     dummy_data = {
         'intermediate': '',
         'reference_genome': '',
-        'sample': '',
+        'samples': '',
     }
     if not configs_list.get('ancient_reads', None):
         configs_list['ancient_reads'] = dummy_data
     if not configs_list.get('modern_reads', None):
         configs_list['modern_reads'] = dummy_data
-    if not configs_list.get('ancient_reads', None):
+    if not configs_list.get('contigs', None):
         configs_list['contigs'] = dummy_data
 
     if args.intermediate_dir \
@@ -104,13 +161,13 @@ def main(args):
         # If path of modern samples is given by cmd, it obtains
         # all samples' abs paths from parsed args and store them in a list,
         # and overwrites config with a list of sample paths.
-        configs_list['modern_reads'] = obtain_samples(args.modern_metagenomes)
+        configs_list['modern_reads']['samples'] = obtain_samples(args.modern_metagenomes)
     elif len(configs_list['modern_reads']['samples']) != 0:
         # If the path is given by config file, it obtains
         # all samples' abs paths from path written in
         # config file and store them in a list,
         # and overwrites config with a list of sample paths
-        configs_list['modern_reads'] = obtain_samples(configs_list[1]['samples'])
+        configs_list['modern_reads'][samples] = obtain_samples(configs_list[1]['samples'])
     else:
         configs_list['modern_reads'] = None
 
@@ -132,9 +189,11 @@ def main(args):
         'modern_reads': ModernReadsType,
     }
     for k,v in configs_list.items():
-        if not v.get('param_set', None):
+        print(k, '----', v)
+        if not v.get('parameter_set', None):
             continue
         configs = str_to_class[k](v)
+        print(configs)
         dest = workflow(configs, if_clean, if_authenticate, opt_dir)
         inter_results.extend(dest)
 
@@ -781,64 +840,6 @@ def authenticate(intermediate_path, refseq, filtered_bams):
     return G2A, C2T
 
 
-def parse_args():
-    # parse parameters
-    parser = argparse.ArgumentParser(description = 'Reconstruct whole-genome-level MSA from large-scale datasets.')
-    parser.add_argument('config_file', help='Input the configuration file.')
-    parser.add_argument('-r',
-                        '--reference',
-                        help='Input reference genome sequence in the fasta format.',
-                        type = str,
-                        default = None)
-    parser.add_argument('-a_ipt',
-                        '--ancient_metagenomes',
-                        help = 'Input an ancient-metagenome folder containing sub-folders, each sub-folder \
-                        contains sequencing reads from one ancient sample. [Support suffix of .fastq/.fastq.gz/.fastq.bz2]',
-                        type = str,
-                        default = None)
-    parser.add_argument('-m_ipt',
-                        '--modern_metagenomes',
-                        help = 'Input a modern-metagenome folder containing sub-folders, each sub-folder \
-                        contains sequencing reads from one modern sample. [Support suffix of .fastq/.fastq.gz/.fastq.bz2]',
-                        type = str,
-                        default = None)
-    parser.add_argument('-g_ipt',
-                        '--genome_assemlies',
-                        help = 'Input a genome-assemblies folder containing assembled genomes, each assembled \
-                        genome is stored in a fasta file. [Support FASTA format]',
-                        type = str,
-                        default = None)
-    parser.add_argument('-o',
-                        '--output_dir',
-                        help = 'Specify an output folder for storing results. Default: [Mac_output] in the working directory.',
-                        default = 'Mac_output')
-
-    parser.add_argument('-int',
-                        '--intermediate_dir',
-                        help = 'Specify an intermediate folder for storing intermediate files. Default: [intermediates] in the working directory.',
-                        default = None)
-    parser.add_argument('-c',
-                        '--clean',
-                        help='Clean intermediate files and rerun from the beginning, \
-                        otherwise rerun from the intermediate files',
-                        action='store_true')
-    parser.add_argument('-a',
-                        '--authentication',
-                        help='Autheticate the anicent origin of genomic information used in genome reconstruction.',
-                        action='store_true')
-    parser.add_argument('-snv_rate',
-                        '--SNV_rate',
-                        help='Estimate pairwise SNV rates between samples.',
-                        action='store_true')
-
-    args = parser.parse_args()
-    return args
-
-
 if __name__ == "__main__":
-    log_config = "/".join(os.path.abspath(__file__).split('/')[:-1]) + '/metaclock_configs/logging_config.ini'
-    fileConfig(log_config)
-    logger = logging.getLogger()
 
-    args = parse_args()
-    main(args)
+    main()

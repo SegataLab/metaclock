@@ -23,7 +23,7 @@ class ContigsType(object):
             raise TypeError("reference_genome should be str type")
 
         if type(self.samples) is not str:
-            raise TypeError("samples should bd str type")
+            raise TypeError("samples should be str type")
 
         if type(self.param_set['homolog_length']) is not int:
             raise TypeError("homolog_length should be an integer")
