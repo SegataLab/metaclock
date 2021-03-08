@@ -189,11 +189,9 @@ def main():
         'modern_reads': ModernReadsType,
     }
     for k,v in configs_list.items():
-        print(k, '----', v)
         if not v.get('parameter_set', None):
             continue
         configs = str_to_class[k](**v)
-        print(configs)
         dest = workflow(configs, if_clean, if_authenticate, opt_dir)
         inter_results.extend(dest)
 
@@ -207,6 +205,7 @@ def main():
     if if_est_snv:
         nproc = configs_list['ancient_reads']['parameter_set']['nproc']
         SNP_rates.plot_snv_rates_main(Mac_final, nproc, output_dir = opt_dir)
+    logger.info('Genome alignment reconstuction is completed and welcome back !')
 
 
 def obtain_samples(folder_path):
