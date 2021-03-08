@@ -22,18 +22,21 @@ setuptools.setup(name='metaclock',
                  packages=setuptools.find_packages(),
                  package_data={
                      'metaclock': [
-                         'metaclock/utils/*'
+                         'metaclock/utils/*',
+                         'metaclock/metaclock_configs/*'
                  ]},
                  entry_points={
                      'console_scripts': [
                          'metaclock_mac = metaclock.metaclock_mac:main',
                          'metaclock_visualizer = metaclock.metaclock_visualizer:main',
                          'metaclock_tailor = metaclock.metaclock_tailor:main',
+                         'metaclock_combiner = metaclock.metaclock_combiner:main',
                          'bo6_screen.py = metaclock.utils.bo6_screen:main',
                          'filter.py = metaclock.utils.filter:main',
                          'metaclock_mac_template_configs = metaclock.utils.metaclock_mac_template_configs:main'
                  ]},
                  description='metaclock package test',
+                 include_package_data=True,
                  long_description=open('README.md').read(),
                  long_description_content_type='text/markdown',
                  install_requires=install_reqs,

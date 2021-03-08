@@ -1,107 +1,38 @@
 #!/usr/bin/env python
 
 
-import json
-import sys
-import math
-import timeit
-import subprocess
 import argparse
-import os
 import itertools
-from .utils import utils
-from .utils import AlignStats
-from .utils import SNP_rates
-from collections import defaultdict
-import shutil
+import json
+import logging
+import math
+import os
 import pysam
+import shutil
+import subprocess
+import sys
+import timeit
+
+from collections import defaultdict
 from functools import partial
-from Bio import SeqIO
-from Bio.SeqRecord import SeqRecord
-from Bio.Alphabet import generic_dna
-from Bio.Seq import Seq
-from Bio import AlignIO
+from logging.config import fileConfig
+
+from Bio import SeqIO, AlignIO
 from Bio.Align import MultipleSeqAlignment
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+from .utils.data_types import AncientReadsType, ContigsType, ModernReadsType
+from .utils import utils, AlignStats, SNP_rates
 
-
-def validator(params):
-    # check if required parameter provided
-    try:
-        reference_genome = params['reference_genome']
-    except KeyError:
-        raise Exception('reference_genome not provided')
-
-    try:
-        sample = params['sample']
-    except KeyError:
-        raise Exception('sample not provided')
-
-    # check `reads` mode data type
-    if params.get('input_type') and type(params.get('input_type')) is not str:
-        raise TypeError("input_type should be str type")
-    if type(reference_genome) is not str:
-        raise TypeError("reference_genome should be str type")
-    if params.get('age_type') and type(params.get('age_type')) is not int:
-        raise TypeError("age_type should be str type")
-    if params.get('intermediate') \
-        and type(params.get('intermediate')) is not str:
-        raise TypeError("intermediate should be str type")
-    if params.get('search_report_mode'):
-        if type(params.get('search_report_mode')) is not str:
-            raise TypeError("search_report_mode should be str type")
-        if not re.match('-k,[0-9]', params.get('search_report_mode')):
-            raise TypeError("search_report_mode should ' \
-                            'match re pattern `-k,[0-9]`")
-    if params.get('bowtie2_threads') \
-        and type(params.get('bowtie2_threads'))is not str:
-        raise TypeError("bowtie2_threads should be str type")
-    if params.get('minimum_mapping_quality') \
-        and type(params.get('minimum_mapping_quality')) is not int:
-        raise TypeError("minimum_mapping_quality should be int type")
-    if params.get('minimum_mapping_length') \
-        and type(params.get('minimum_mapping_length')) is not int:
-        raise TypeError("minimum_mapping_length should be int type")
-    if params.get('maximum_snp_edit_distance') \
-        and type(params.get('maximum_snp_edit_distance')) is not float \
-        and params.get('maximum_snp_edit_distance') is not 0:
-        raise TypeError("maximum_snp_edit_distance should be float type")
-    if params.get('nproc') \
-        and type(params.get('nproc')) is not int:
-        raise TypeError("nproc should be int type")
-    if params.get('minimum_coverage') \
-        and type(params.get('minimum_coverage')) is not int:
-        raise TypeError("minimum_coverage should be int type")
-    if params.get('trim_distance'):
-        if type(params.get('trim_distance')) is not str:
-            raise TypeError("trim_distance should be str type")
-        if not re.match('[0-9]:[0-9]', params.get('trim_distance')):
-            raise TypeError("trim_distance should ' \
-                            'match re pattern `[0-9]:[0-9]`")
-    if params.get('dominant_allele_frequency') \
-        and type(params.get('dominant_allele_frequency'))is not float \
-        and params.get('dominant_allele_frequency') is not 0:
-        raise TypeError("dominant_allele_frequency should be float type")
-    if params.get('output_trimmed_reads') \
-        and type(params.get('output_trimmed_reads')) is not int:
-        raise TypeError("output_trimmed_reads should be int type")
-    if type(sample) is not str:
-        raise TypeError("sample should be str type")
-
-    # Check `contigs` mode data type
-    if params.get('homolog_length') \
-        and type(params.get('homolog_length')) is not int:
-        raise TypeError("homolog_length should be str type")
-    if params.get('homolog_identity') \
-        and type(params.get('homolog_identity')) is not float \
-        and params.get('homolog_identity') is not 0:
-        raise TypeError("homolog_identity should be str type")
-    if params.get('blastn_threads') \
-        and type(params.get('blastn_threads')) is not int:
-        raise TypeError("blastn_threads should be str type")
+log_config = "/".join(os.path.abspath(__file__).split('/')[:-1]) + '/metaclock_configs/logging_config.ini'
+fileConfig(log_config)
+logger = logging.getLogger()
 
 
 def main():
-    # parse parameters
+    # If the if_clean is True, we skip creation of DB files and bam files if
+    # they exist.
+
     parser = argparse.ArgumentParser(description = 'Reconstruct whole-genome-level MSA from large-scale datasets.')
     parser.add_argument('config_file', help='Input the configuration file.')
     parser.add_argument('-r',
@@ -152,156 +83,132 @@ def main():
 
     args = parser.parse_args()
 
-    # If the if_clean is True, we skip creation of DB files and bam files if
-    # they exist.
-    if_clean = args.clean
-    print("Clean intermediate files: {}".format(if_clean))
-    if_est_snv = args.SNV_rate
-    print("Estimate pairwise SNV rates: {}".format(if_est_snv))
-    if_authenticate = args.authentication
-    print("Authenticate ancient origin of reads: {}".format(if_authenticate))
 
-    """
-    Loading config file
-    """
+
+    if_clean = args.clean
+    logger.info("Clean intermediate files: {}".format(if_clean))
+    if_est_snv = args.SNV_rate
+    logger.info("Estimate pairwise SNV rates: {}".format(if_est_snv))
+    if_authenticate = args.authentication
+    logger.info("Authenticate ancient origin of reads: {}".format(if_authenticate))
+
+    #Loading config file
     try:
         with open(args.config_file, 'r') as config_file:
             configs_list = json.loads(config_file.read())
-            print("Loading configuration file: completed!")
+            logger.info("Loading configuration file: completed!")
     except Exception as e:
-        print(e)
+        logger.error(e)
 
-    
-    if args.intermediate_dir:
-        """
-        Check if intermediate path is given by cmd, use this path if yes
-        """
+    dummy_data = {
+        'intermediate': '',
+        'reference_genome': '',
+        'samples': '',
+    }
+    if not configs_list.get('ancient_reads', None):
+        configs_list['ancient_reads'] = dummy_data
+    if not configs_list.get('modern_reads', None):
+        configs_list['modern_reads'] = dummy_data
+    if not configs_list.get('contigs', None):
+        configs_list['contigs'] = dummy_data
 
-        Inters = create_folder(args.intermediate_dir) # Create a folder for storing intermediate files
-        print('Intermediate files folder:\n{}'.format(Inters))
+    if args.intermediate_dir \
+        or (not configs_list['ancient_reads']['intermediate'] \
+            or not configs_list['modern_reads']['intermediate'] \
+            or not configs_list['contigs']['intermediate']):
+        if args.intermediate_dir:
+            # Check if intermediate path is given by cmd, use this path if yes
+            inters = create_folder(args.intermediate_dir)
+        else:
+            inters = create_folder('intermediates')
 
-    elif (len(configs_list[0]['intermediate']) != 0) & (len(configs_list[1]['intermediate']) != 0) & (len(configs_list[2]['intermediate']) != 0):
-        """
-        If intermediate path is not given by cmd, then check if it is in config file
-        Use it if yes
-        """
-        Inters = create_folder(configs_list[0]['intermediate'])
-        print('Intermediate files folder:\n{}'.format(Inters))
-    else:
-        """
-        If none of both above is true, create a folder called 'intermediates' in the working diretory by default.
-        """
-        Inters = create_folder('intermediates')
-        print('Intermediate files folder:\n{}'.format(Inters))
-
-
-    configs_list[0]['intermediate'] = Inters # Add abs path of intermediate folder to anciet sample processing job
-    configs_list[1]['intermediate'] = Inters # Add abs path of intermediate folder to modern sample processing job
-    configs_list[2]['intermediate'] = Inters # Add abs path of intermediate folder to genomes processing job
-
+        # Add absolute path of intermediate folder to sample processing job
+        configs_list['ancient_reads']['intermediate'] = inters
+        configs_list['modern_reads']['intermediate'] = inters
+        configs_list['contigs']['intermediate'] = inters
+        logger.info('Intermediate files folder:\n{}'.format(inters))
 
     if args.reference:
-        """
-        If reference is given by command, overwrite config file with updated data from cmd
-        """
+        # If reference is given by command, overwrite config file
+        # with updated data from cmd
         ref_genome = abspath_finder(args.reference) # get the abs path of refseq
-
-    elif (len(configs_list[0]['reference_genome']) != 0) & (len(configs_list[1]['reference_genome']) != 0) & (len(configs_list[2]['reference_genome']) != 0):
-        """
-        If reference is given by config, use it if yes
-        """
-        ref_genome = abspath_finder(configs_list[0]['reference_genome'])
-    else:
+        configs_list['ancient_reads']["reference_genome"] = ref_genome
+        configs_list['modern_reads']["reference_genome"] = ref_genome
+        configs_list['contigs']["reference_genome"] = ref_genome
+        logger.info('Reading reference genome from:\n{}'.format(ref_genome))
+    elif not configs_list['ancient_reads']['reference_genome'] \
+        and not configs_list['modern_reads']['reference_genome'] \
+        and not configs_list['contigs']['reference_genome']:
         sys.exit("Please input a reference genome in fasta format!")
 
-    configs_list[0]["reference_genome"] = ref_genome # Add abs path of reference to anciet sample processing job
-    configs_list[1]["reference_genome"] = ref_genome # Add abs path of reference to modern sample processing job
-    configs_list[2]["reference_genome"] = ref_genome # Add abs path of  reference to genomes processing job
-    print('Reading reference genome from:\n{}'.format(ref_genome))
-
     if args.ancient_metagenomes:
-        """
-        If path of ancient samples is given by cmd, it obtains all samples' abs paths from parsed args and store them in a list,
-        and overwrites config with a list of sample paths.
-        """
-        a_samples = obtain_samples(args.ancient_metagenomes)
-
-    elif len(configs_list[0]['parameter_set']['samples']) != 0:
-        """
-        If the path is given by config file, it obtains all samples' abs paths from path written in config file and store them in a list,
-        and overwrites config with a list of sample paths
-        """
-
-        a_samples = obtain_samples(configs_list[0]['parameter_set']['samples'])
-
+        #If path of ancient samples is given by cmd, it obtains
+        # all samples' abs paths from parsed args and store them in a list,
+        # and overwrites config with a list of sample paths.
+        configs_list['ancient_reads']['samples'] = obtain_samples(
+            args.ancient_metagenomes)
+    elif len(configs_list['ancient_reads']['samples']) != 0:
+        # If the path is given by config file, it obtains
+        # all samples' abs paths from path written in config file
+        # and store them in a list, and overwrites config
+        # with a list of sample paths
+        configs_list['ancient_reads']['samples'] = obtain_samples(
+            configs_list['ancient_reads']['samples'])
     else:
-        """
-        Else, assign None value to sample_list
-        """
-        a_samples = None
-
-    configs_list[0]['parameter_set']['samples'] = a_samples
+        configs_list['ancient_reads']['samples'] = None
 
     if args.modern_metagenomes:
-        """
-        If path of modern samples is given by cmd, it obtains all samples' abs paths from parsed args and store them in a list,
-        and overwrites config with a list of sample paths.
-        """
-
-        m_samples = obtain_samples(args.modern_metagenomes)
-    elif len(configs_list[1]['parameter_set']['samples']) != 0:
-        """
-        If the path is given by config file, it obtains all samples' abs paths from path written in config file and store them in a list,
-        and overwrites config with a list of sample paths
-        """
-
-        m_samples = obtain_samples(configs_list[1]['parameter_set']['samples'])
-
+        # If path of modern samples is given by cmd, it obtains
+        # all samples' abs paths from parsed args and store them in a list,
+        # and overwrites config with a list of sample paths.
+        configs_list['modern_reads']['samples'] = obtain_samples(args.modern_metagenomes)
+    elif len(configs_list['modern_reads']['samples']) != 0:
+        # If the path is given by config file, it obtains
+        # all samples' abs paths from path written in
+        # config file and store them in a list,
+        # and overwrites config with a list of sample paths
+        configs_list['modern_reads'][samples] = obtain_samples(configs_list[1]['samples'])
     else:
-        m_samples = None
+        configs_list['modern_reads'] = None
 
-    configs_list[1]['parameter_set']['samples'] = m_samples
-
-
-
-    # get all modern metagenome samples in abs path
     if args.genome_assemlies:
-        genomes = abspath_finder(args.genome_assemlies)
-
-    elif len(configs_list[2]['parameter_set']['samples']) != 0:
-        genomes = abspath_finder(configs_list[2]['parameter_set']['samples'])
-
+        configs_list['contigs']['samples'] = abspath_finder(args.genome_assemlies)
+    elif len(configs_list['contigs']['samples']) != 0:
+        configs_list['contigs']['samples'] = abspath_finder(
+            configs_list['contigs']['samples'])
     else:
-        genomes = None
-
-    configs_list[2]['parameter_set']['samples'] = genomes
-
-    # get the folder of genome assemblies
+        configs_list['contigs']['samples'] = None
 
     opt_dir = create_folder(args.output_dir)
-    print('Outputs folder:\n{}'.format(opt_dir))
-
-    for configs in configs_list:
-        # The program will exit and raise exception for invalid parameter.
-        validator(configs)
+    logger.info('Outputs folder: {}'.format(opt_dir))
 
     inter_results = []
-    for configs in configs_list:
+    str_to_class = {
+        'ancient_reads': AncientReadsType,
+        'contigs': ContigsType,
+        'modern_reads': ModernReadsType,
+    }
+    for k,v in configs_list.items():
+        if not v.get('parameter_set', None):
+            continue
+        configs = str_to_class[k](**v)
         dest = workflow(configs, if_clean, if_authenticate, opt_dir)
         inter_results.extend(dest)
 
 
     output_file = opt_dir + '/' + opt_dir.split('/')[-1] +'.fna'
     Mac_final = merge_all(inter_results, ref_genome, output_file)
-    utils.out_stats(Mac_final, output_dir = opt_dir)
+
+    opt_stats = opt_dir + '/mac_stats.tsv'
+    utils.out_stats(Mac_final, opt_stats = opt_stats)
 
     if if_est_snv:
-        nproc = configs_list[0]['parameter_set']['nproc']
+        nproc = configs_list['ancient_reads']['parameter_set']['nproc']
         SNP_rates.plot_snv_rates_main(Mac_final, nproc, output_dir = opt_dir)
+    logger.info('Genome alignment reconstuction is completed and welcome back !')
 
 
 def obtain_samples(folder_path):
-
     """
     It takes abs path of an input folder,
     and return a list of abs paths of sub-folders
@@ -316,14 +223,14 @@ def obtain_samples(folder_path):
 
 
 def workflow(configs, if_clean, if_authenticate, opt_dir):
-    mode = configs['input_type']
+    mode = configs.input_type
     # build database
     db_dest = []
     if not if_clean:
         if mode == 'reads':
-            db_filenames = get_bowtie2_db_files(configs['intermediate'], configs['reference_genome'])
+            db_filenames = get_bowtie2_db_files(configs.intermediate, configs.reference_genome)
         elif mode == 'contigs':
-            db_filenames = get_blastn_db_files(configs['intermediate'], configs['reference_genome'])
+            db_filenames = get_blastn_db_files(configs.intermediate, configs.reference_genome)
 
         skip = True
         for db_filename in db_filenames['db_files']:
@@ -333,13 +240,13 @@ def workflow(configs, if_clean, if_authenticate, opt_dir):
         if skip:
             # DB files exist, we skip db creation
             db_dest = db_filenames['db_prefix']
-            print('Using existing database files {}'.format(db_dest))  
+            logger.info('Using existing database files: {}'.format(db_dest))
     if not db_dest:
-        print('Creating new database files')    
-        db_dest = build_db_file(mode, configs['reference_genome'], configs['intermediate'], configs['parameter_set']['samples'])
-    print('Database files path:\n{}'.format(db_dest))
+        logger.info('Creating new database files')
+        db_dest = build_db_file(mode, configs.reference_genome, configs.intermediate, configs.samples)
+    logger.info('Database files path:\n{}'.format(db_dest))
     # build mapping with database files
-    reconstructed_genome = build_mapping(db_dest, if_clean, if_authenticate, opt_dir, **configs)
+    reconstructed_genome = build_mapping(db_dest, if_clean, if_authenticate, opt_dir, configs)
 
     return reconstructed_genome
 
@@ -363,87 +270,101 @@ def build_db_file(mode, ref_genome, db_dir, samples):
         # build command
         cmd = "bowtie2-build -q {ref} {dest}".format(**params)
         run_cmd_in_shell(cmd)
-        print("Creating database for bowtie2: completed!")
+        logger.info("Creating database for bowtie2: completed!")
     elif (mode == 'contigs') and params['Samples']:
         cmd = "makeblastdb -in {ref} -dbtype nucl -out {dest}".format(**params)
         run_cmd_in_shell(cmd)
-        print("Creating database for blastn: completed!")
+        logger.info("Creating database for blastn: completed!")
     else:
-        print('database of {} mode was skipped!\n'.format(mode))
-
-    # run the command
-    # TODO: exception handling
-
+        logger.info('Database of {} mode was skipped!'.format(mode))
 
     return params['dest']
 
 
-def build_mapping(db_dest, if_clean, if_authenticate, opt_dir, **kwargs):
-    mode = kwargs['input_type']
-    param_set = kwargs['parameter_set']
+def build_mapping(db_dest, if_clean, if_authenticate, opt_dir, configs):
+    mode = configs.input_type
+    param_set = configs.param_set
     opt_all_files = []
     if mode == 'reads':
-        age_type = kwargs['age_type']
-        if (age_type == 1) and param_set['samples']:
+        age_type = configs.age_type
+        if (age_type == 1) and configs.samples:
             # Using ancient-specific param_set
             bam_files = bwt2_batch_mapping(
-                param_set['samples'], db_dest, param_set['bowtie2_threads'],
-                param_set['search_report_mode'], param_set['nproc'], if_clean) # parameters specific to mapping ancient samples
-            print('Raw bam files: \n{}'.format('\n'.join(bam_files)))
-            filtered_bams = batch_bam_filter(bam_files, param_set['minimum_mapping_quality'], param_set['minimum_mapping_length'], param_set['maximum_snp_edit_distance'], param_set['nproc'])
-            print('Filtered bam files: \n{}'.format('\n'.join(filtered_bams)))
-            opt_files = batch_consensus_builder(filtered_bams, param_set['minimum_coverage'], param_set['trim_distance'], param_set['dominant_allele_frequency'], param_set['nproc'])
-            print('Reconstructed fasta files: \n{}'.format('\n'.join(opt_files)))
+                configs.samples, db_dest, param_set['bowtie2_threads'],
+                param_set['search_report_mode'], param_set['nproc'], if_clean)
+
+            logger.info('Raw bam files: \n{}'.format('\n'.join(bam_files)))
+            filtered_bams = batch_bam_filter(
+                bam_files, param_set['minimum_mapping_quality'],
+                param_set['minimum_mapping_length'],
+                param_set['maximum_snp_edit_distance'], param_set['nproc'])
+            logger.info(
+                'Filtered bam files: \n{}'.format('\n'.join(filtered_bams)))
+            opt_files = batch_consensus_builder(
+                filtered_bams, param_set['minimum_coverage'],
+                param_set['trim_distance'],
+                param_set['dominant_allele_frequency'], param_set['nproc'])
+            logger.info('Reconstructed fasta files: \n{}'.format('\n'.join(opt_files)))
             opt_all_files.extend(opt_files)
             if param_set['output_trimmed_reads'] == 1:
                 for bam in filtered_bams:
                     sorted_bam = bam + '.sorted'
-                    print("Outputing trimmed reads from {}\n".format(sorted_bam))
+                    logger.info("Outputing trimmed reads from {}".format(sorted_bam))
                     output_trimmed_reads(param_set['trim_distance'], sorted_bam)
             else:
                 pass
 
             if if_authenticate:
-                damage_patterns = authenticate(kwargs['intermediate'], kwargs['reference_genome'], filtered_bams)
+                damage_patterns = authenticate(
+                    configs.intermediate, configs.reference_genome,
+                    filtered_bams)
                 G2A_files = damage_patterns[0]
                 C2T_files = damage_patterns[1]
                 utils.draw_damage_pattern(G2A_files, C2T_files, opt_dir)
             else:
                 pass
-
-
-
-        elif (age_type == 2) and param_set['samples']:
+        elif (age_type == 2) and configs.samples:
             # Using modern-specific param_set
             bam_files = bwt2_batch_mapping(
-                param_set['samples'], db_dest, param_set['bowtie2_threads'],
-                param_set['search_report_mode'], param_set['nproc'], if_clean) # parameters specific to mapping ancient samples
-            print('Raw bam files: \n{}'.format('\n'.join(bam_files)))
-            filtered_bams = batch_bam_filter(bam_files, param_set['minimum_mapping_quality'], param_set['minimum_mapping_length'], param_set['maximum_snp_edit_distance'], param_set['nproc'])
-            print('Filtered bam files: \n{}'.format('\n'.join(filtered_bams)))
-            opt_files = batch_consensus_builder(filtered_bams, param_set['minimum_coverage'], None, param_set['dominant_allele_frequency'], param_set['nproc'])
-            print('Reconstructed fasta files: \n{}'.format('\n'.join(opt_files)))
-            opt_all_files.extend(opt_files)
+                configs.samples, db_dest, param_set['bowtie2_threads'],
+                param_set['search_report_mode'], param_set['nproc'], if_clean)
 
-    elif (mode == 'contigs') and param_set['samples']:
-        configs = kwargs
-        ctigs_concatenated = generate_query_set_and_mp_file(configs['intermediate'], param_set['samples'])
-        print('Generating mp file and concatenating genomes: completed!\n')
+            logger.info('Raw bam files: \n{}'.format('\n'.join(bam_files)))
+            filtered_bams = batch_bam_filter(
+                bam_files, param_set['minimum_mapping_quality'],
+                param_set['minimum_mapping_length'],
+                param_set['maximum_snp_edit_distance'], param_set['nproc'])
+            logger.info('Filtered bam files: \n{}'.format('\n'.join(filtered_bams)))
+            opt_files = batch_consensus_builder(
+                filtered_bams, param_set['minimum_coverage'], None,
+                param_set['dominant_allele_frequency'], param_set['nproc'])
+            logger.info('Reconstructed fasta files: \n{}'.format('\n'.join(opt_files)))
+            opt_all_files.extend(opt_files)
+    elif (mode == 'contigs') and configs.samples:
+        ctigs_concatenated = generate_query_set_and_mp_file(
+            configs.intermediate, configs.samples)
+        logger.info('Generating mp file and concatenating genomes: completed!\n')
 
         mp_file = ctigs_concatenated[0]
         query_set = ctigs_concatenated[1]
-        db_dest = configs['intermediate'] + '/'+ configs['reference_genome'].split('/')[-1]
-        raw_blastn_tab = blast_genomes(configs['intermediate'], db_dest, query_set, param_set['blastn_threads'], if_clean)
-        print('Genearating raw blastn results: completed!\n')
+        db_dest = configs.intermediate + '/'+ configs.reference_genome.split('/')[-1]
+        raw_blastn_tab = blast_genomes(
+            configs.intermediate, db_dest, query_set,
+            param_set['blastn_threads'], if_clean)
+        logger.info('Genearating raw blastn results: completed!\n')
 
-        cleaned_blastn_tab = QC_on_blastn(raw_blastn_tab, param_set['homolog_length'], param_set['homolog_identity'], configs['intermediate'])
-        print('Applying QC on raw blastn results: completed!\n')
+        cleaned_blastn_tab = QC_on_blastn(
+            raw_blastn_tab, param_set['homolog_length'],
+            param_set['homolog_identity'], configs.intermediate)
+        logger.info('Applying QC on raw blastn results: completed!\n')
 
-        genomes_contigs_dict = concatenate_contigs(cleaned_blastn_tab, mp_file, configs['reference_genome'])
-        print('Reordering homologous fragments: completed!\n')
+        genomes_contigs_dict = concatenate_contigs(
+            cleaned_blastn_tab, mp_file, configs.reference_genome)
+        logger.info('Reordering homologous fragments: completed!\n')
 
-        opt_files = output_single_files(genomes_contigs_dict, configs['reference_genome'], configs['intermediate'])
-        print('Outputing single homologs files: completed!\n')
+        opt_files = output_single_files(
+            genomes_contigs_dict, configs.reference_genome, configs.intermediate)
+        logger.info('Outputing single homologs files: completed!\n')
 
         opt_all_files.extend(opt_files)
     return opt_all_files
@@ -476,12 +397,12 @@ def single_mapping(output_dir, db_dest, sample, threads, m_mode, if_clean):
         sys.exit("Reads have to be in the form of .bz2, .gz or .fastq!")
 
     run_cmd_in_shell(cmd)
-    print("Mapping single sample {}: completed!".format(sample))
+    logger.info("Mapping single sample {}: completed!".format(sample))
     return opt_raw_bam
 
 def bwt2_batch_mapping(sample_list, db_dest, threads, m_mode, processors, if_clean):
 
-    # print("Batch mapping samples:\n {}".format("\n".join(sample_list)))
+    # logger.info("Batch mapping samples:\n {}".format("\n".join(sample_list)))
 
     proc_num = len(sample_list)
     output_dir = '/'.join(db_dest.split('/')[:-1])
@@ -491,7 +412,7 @@ def bwt2_batch_mapping(sample_list, db_dest, threads, m_mode, processors, if_cle
 
 
 def run_cmd_in_shell(cmd):
-    print('Running command:\n{}'.format(cmd))
+    logger.info('Running command: {}'.format(cmd))
     subprocess.call(cmd, shell=True)
 
 
@@ -524,7 +445,7 @@ def batch_bam_filter(bams, min_q, min_l, max_snp_edist, processors):
     """
     Parallelize single_bam_filter()
     """
-    # print("Batch filter bams:\n {}".format("\n".join(bams)))
+    # logger.info("Batch filter bams:\n {}".format("\n".join(bams)))
 
     proc_num = len(bams)
     output_dir = '/'.join(bams[0].split('/')[:-1])
@@ -558,11 +479,10 @@ def single_consensus_builder(output_dir, filtered_bam, min_c, t_dist, domi_ale_f
     return  opt_filtered_consensus
 
 def batch_consensus_builder(filtered_bams, min_c, t_dist, domi_ale_frq, processors):
-
     """
     Parallelize single_consensus_builder()
     """
-    # print("Batch building consensus:\n {}".format("\n".join(filtered_bams)))
+    # logger.info("Batch building consensus:\n {}".format("\n".join(filtered_bams)))
     proc_num = len(filtered_bams)
     output_dir = '/'.join(filtered_bams[0].split('/')[:-1])
     params = [[output_dir, filtered_bams[i], min_c, t_dist, domi_ale_frq] for i in range(proc_num)]
@@ -575,11 +495,11 @@ def output_trimmed_reads(trim_pos, bam_file):
     """
     This feature is optional.
     If chosen, trimmed reads extracted from filtered bams and re-direct to fastq files which
-    are stored in outputs/trimmed_reads 
+    are stored in outputs/trimmed_reads
     """
 
     in_samfile = pysam.AlignmentFile(bam_file, 'rb')
-    
+
     reads_opt = bam_file.replace('.bam.sorted', '.fastq')
 
     out_fastq = open(reads_opt, 'w')
@@ -589,7 +509,7 @@ def output_trimmed_reads(trim_pos, bam_file):
     for read in in_samfile.fetch():
         if read.is_reverse:
             read_name = read.query_name
-            read_seq = str(Seq(read.query_alignment_sequence[int(left): -int(right)], generic_dna)\
+            read_seq = str(Seq(read.query_alignment_sequence[int(left): -int(right)])\
                 .reverse_complement())
             read_qual = read.qual[int(left): -int(right)][::-1]
 
@@ -599,7 +519,7 @@ def output_trimmed_reads(trim_pos, bam_file):
             out_fastq.write(read_qual+'\n')
         else:
             read_name = read.query_name
-            read_seq = str(Seq(read.query_alignment_sequence[int(left): -int(right)], generic_dna))
+            read_seq = str(Seq(read.query_alignment_sequence[int(left): -int(right)]))
             read_qual = read.qual[int(left): -int(right)]
 
             out_fastq.write('@'+read_name+'\n')
@@ -610,15 +530,14 @@ def output_trimmed_reads(trim_pos, bam_file):
 
 
 def generate_query_set_and_mp_file(output_dir, contigs_folder):
-    
     """
     Input: 'contigs' -> a folder of fasta files, each represents a genome
-    Program: 
+    Program:
     1) It merges all individual fasta files into one fasta file, called 'INTER_QuerySet.fna',as an intermediate.
-    2) It creates a mapping file delimited by 'comma', 1st column is genome name (i.e. file name) and 2nd column is 
+    2) It creates a mapping file delimited by 'comma', 1st column is genome name (i.e. file name) and 2nd column is
     name of the contig which belongs to the genome.
     Output: 1) A merged fasta file, INTER_QuerySet.fna, for downstream analysis as input
-            2) A mapping file, 1st column is genome name and 2nd column is contig name 
+            2) A mapping file, 1st column is genome name and 2nd column is contig name
     """
 
     mp_file = output_dir + '/genome_contigs_mp.csv'
@@ -653,18 +572,16 @@ def blast_genomes(output_dir, db_dest, query_set, threads, if_clean):
     return '{}/raw_blastn_opt.tab'.format(output_dir)
 
 def QC_on_blastn(blast_tab, length, pid, output_dir):
-
     """
     It applies QC on blast output
     Input: 1)'INTER_blast_opt_tmp.tab', 2) length of hits, 3) identity percentage of hits
     Program: call script 'bo6_screen.py'
-    Output: filtered blast output, 'INTER_blastn_opt_tmp_cleaned.tab' 
+    Output: filtered blast output, 'INTER_blastn_opt_tmp_cleaned.tab'
     """
 
     cmd = 'cut -f 1-14 {} | bo6_screen.py --length {} --pid {} > {}/cleaned_blastn_opt.tab'.format(blast_tab, length, pid, output_dir)
     run_cmd_in_shell(cmd)
-    return '{}/cleaned_blastn_opt.tab'.format(output_dir)   
-   
+    return '{}/cleaned_blastn_opt.tab'.format(output_dir)
 
 
 class blastn_sort(object):
@@ -691,7 +608,6 @@ class blastn_sort(object):
         self.sseq = hit[13]
 
 def get_homo_query(homo_sub, homo_query):
-
     """
     This function takes sub_query alignment as arguments. To make sure reconst
     ructed homologous sequence from query has same length as reference sequence
@@ -707,7 +623,6 @@ def get_homo_query(homo_sub, homo_query):
     return "".join(query_lst).replace("$","")
 
 def sort_contig(contig_coor_dir_bit_seq):
-    
     """
     It sorts all hits of all contigs from one genome, based on start position.
     If hits share same start position, then consider bitscore.
@@ -719,7 +634,6 @@ def sort_contig(contig_coor_dir_bit_seq):
     return sorted_dict
 
 def bricklayer(contig, range_lst):
-
     """
     bricklayer is greedy algorithm which minimizes gappy sites.
     1) Create a contig backbone filled in with '-' using real ref contig length
@@ -730,7 +644,7 @@ def bricklayer(contig, range_lst):
         1> If next range is completely located within 'layed' region, continue
         2> If next range partially overlapped with 'layed' region, expand inte
         rected region
-        3> replace '-' with range  
+        3> replace '-' with range
     """
     contig_lst = ['-']*len(contig) # Create a backnone using ref contig length in list
     range_start = range_lst[0][0] - 1
@@ -751,10 +665,10 @@ def bricklayer(contig, range_lst):
             contig_lst[layed_part[-1][1] : range_lst[r][1]] = range_lst[r][-1][-distance:]
             layed_part.append([layed_part[-1][1], range_lst[r][1]])
 
-    return ''.join(contig_lst)  
+    return ''.join(contig_lst)
 
 def complement_seq(seq):
-    mydna = Seq(seq, generic_dna)
+    mydna = Seq(seq)
     return str(mydna.complement())
 
 def reconstruct(genome_contig_dir, query_genome_name, ref_dict):
@@ -807,11 +721,11 @@ def reorder_contigs_2(ref_fna_dict, recon_genome_dict):
     for c in ref_ctig_coordinate:
         if c[0] in recon_genome_dict:
             recon_seq = seq_proofreading(recon_genome_dict[c[0]])
-            ctig_record = SeqRecord(Seq(recon_seq, generic_dna), id = c[0] + '_consensus', description = '')
+            ctig_record = SeqRecord(Seq(recon_seq), id = c[0] + '_consensus', description = '')
             contigs_list.append(ctig_record)
         else:
             ctig_seq = len(ref_fna_dict[c[0]]) * '-'
-            ctig_record = SeqRecord(Seq(ctig_seq, generic_dna), id = c[0] + '_consensus', description = '')
+            ctig_record = SeqRecord(Seq(ctig_seq), id = c[0] + '_consensus', description = '')
             contigs_list.append(ctig_record)
 
     return contigs_list
@@ -833,7 +747,7 @@ def merge_all(files_lst, ref_fna, output_file):
     seq_records = []
     refseq_to_dict = SeqIO.to_dict(SeqIO.parse(open(ref_fna), "fasta"))
     ref_seq_concatenated = ''.join(str(refseq_to_dict[header].seq) for header in sorted_headers)
-    seq_records.append(SeqRecord(Seq(ref_seq_concatenated, generic_dna), id = ref_fna.split('/')[-1], description= ''))
+    seq_records.append(SeqRecord(Seq(ref_seq_concatenated), id = ref_fna.split('/')[-1], description= ''))
     for file in files_lst:
         file_to_dict = SeqIO.to_dict(SeqIO.parse(open(file), "fasta"))
         seq_name = file.split('/')[-1].split('____')[-1]
@@ -842,7 +756,7 @@ def merge_all(files_lst, ref_fna, output_file):
             header = header + '_consensus'
             concatenated_seq += str(file_to_dict[header].seq)
         concatenated_seq = seq_proofreading(concatenated_seq)
-        single_seq_record = SeqRecord(Seq(concatenated_seq, generic_dna), id = seq_name, description = '')
+        single_seq_record = SeqRecord(Seq(concatenated_seq), id = seq_name, description = '')
         seq_records.append(single_seq_record)
     SeqIO.write(seq_records, output_file, 'fasta')
 
@@ -855,11 +769,11 @@ def abspath_finder(file):
 def create_folder(name):
     folder_name = abspath_finder(name) # determine the abs path
     if os.path.exists(folder_name):
-        print('{} exists: pass!'.format(folder_name))
+        logger.info('{} exists: pass!\n'.format(folder_name))
         pass
     else:
         os.makedirs(folder_name)
-        print('Creating folder {}'.format(folder_name))
+        logger.info('Creating folder: {}\n'.format(folder_name))
     return folder_name
 
 def get_bowtie2_db_files(intermediate_path, reference_genome):
@@ -903,7 +817,7 @@ def get_raw_blastn_opt(intermediate_path, db_dest, query_set, threads):
 def seq_proofreading(Sequence):
     legit_bases = ['A', 'T', 'G', 'C', '-'] # five bases allowed to occur in the reconstructed sequence
     legalized_seq = [b.upper() if b.upper() in legit_bases else '-' for b in Sequence]
-    return "".join(legalized_seq)  
+    return "".join(legalized_seq)
 
 
 def authenticate(intermediate_path, refseq, filtered_bams):
@@ -921,13 +835,10 @@ def authenticate(intermediate_path, refseq, filtered_bams):
         run_cmd_in_shell(cmd)
         G2A.append(mp_opt_dir + '/3pGtoA_freq.txt')
         C2T.append(mp_opt_dir + '/5pCtoT_freq.txt')
-    
-    return G2A, C2T    
-    
+
+    return G2A, C2T
 
 
 if __name__ == "__main__":
+
     main()
-
-
-

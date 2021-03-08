@@ -11,7 +11,6 @@ from itertools import chain
 import argparse
 from collections import defaultdict
 from Bio.SeqRecord import SeqRecord
-from Bio.Alphabet import generic_dna
 from Bio.Seq import Seq
 from operator import itemgetter 
 import numpy as np
@@ -105,9 +104,9 @@ class stats(object):
         else:
                 return "0"
 
-def out_stats(fna_file, output_dir=os.getcwd(), opt_stats='Mac_stats.tsv'):
+def out_stats(fna_file, opt_stats= 'stats.tsv'):
     seqio_dict = SeqIO.to_dict(SeqIO.parse(fna_file, "fasta"))
-    opt_file = output_dir + '/' + opt_stats
+    opt_file = opt_stats
     opt = open(opt_file,"w")
     opt.write("SeqHeader\t"+ "GapRatio\t" + "AlignLength\t" + "SeqLength\t" +"GCcontent\n")
     for seq in seqio_dict:
@@ -243,7 +242,7 @@ def ancient_sample_tailor(aln_dict, num_a = 1):
         core_seq = itemgetter(*core_col)(seq_lst)
         seq="".join(core_seq)
         _id = g
-        record_lst.append(SeqRecord(Seq(seq, generic_dna), id = _id, description = ''))
+        record_lst.append(SeqRecord(Seq(seq), id = _id, description = ''))
     return record_lst
 
 
@@ -267,6 +266,13 @@ def EvalCdf(sample, x):
             count += 1
     prob = count / len(sample)
     return prob
+
+def hist_plot(ax, data, param_dict):
+
+    out = ax.hist(data, **param_dict)
+
+    return out
+
 
 def draw_damage_pattern(G2A_files, C2T_files, opt_dir):
     substitution_type, postions, freq = [], [], []
