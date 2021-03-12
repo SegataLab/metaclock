@@ -36,7 +36,7 @@ Dependencies:
 
 # Tutorials
 
-* [MetaClock User manual]()
+* [MetaClock User manual](https://github.com/SegataLab/metaclock/wiki/User-manual)
 * [MetaClock Tutorials]()
 
 
