@@ -65,13 +65,13 @@ def read_args(args):
 
     parser.add_argument('-l',
                         '--length',
-                        help = 'minimum length of homologous sequence alignment to keep as a hit. default: [500]',
+                        help = 'The minimum length of homologous sequence alignment to keep as a hit. default: [500]',
                         type = str,
                         default = '500')
 
     parser.add_argument('-i',
                         '--identity',
-                        help = 'minium identity of homologous sequences to keep as a hit. default: [95.0]',
+                        help = 'The minium identity of homologous sequences to keep as a hit. default: [95.0]',
                          type = str,
                          default = '95.0')
 
@@ -83,8 +83,8 @@ def read_args(args):
 
     parser.add_argument('-hf',
                         '--homo_site_in_refs',
-                        help = 'The number of references in which homologous sites can be found. default: [2]',
-                        default = 2.0,
+                        help = 'The number of references site must be in to be homologous. default: [The total number of references used]',
+                        default = None,
                         type = int)
 
     parser.add_argument('-d',
@@ -545,7 +545,7 @@ def check_max_uniq(site_lst, majority_threshold):
 
     return consensus
 
-def consensus_col_builder(lst_homo_cols, majority_threshold, refs_num = 2): # ? Check here, might be some problems.
+def consensus_col_builder(lst_homo_cols, majority_threshold, refs_num = 2):
     lst_homo_cols = [c.split("$")[-1] for c in lst_homo_cols]
     consensus_col = []
     if len(lst_homo_cols) >= refs_num: 
@@ -656,6 +656,8 @@ def main():
     refs_header_names = refs_collected['RefSeq_header_list']
     refs_sequences = refs_collected['RefSeqs']
 
+    total_number_refs = len(refs_header_names)
+
     ref_sub_groups = [i[0]+'@'+i[1] for i in itertools.combinations(refs_header_names, 2)]
 
 
@@ -695,7 +697,13 @@ def main():
     logger.info('Start building consensus sites')
     col_tool_obj = column_toolkit(sites_containner)
     logger.info('Start building consensus alignment....')
-    cols_merged = col_tool_obj.merge_col_voting(pars['voting_threshold'], pars['homo_site_in_refs'])
+    if pars['homo_site_in_refs']:
+        logger.info('The homologous site is defined by that a site must be in {} references'.format(pars['homo_site_in_refs']))
+        cols_merged = col_tool_obj.merge_col_voting(pars['voting_threshold'], pars['homo_site_in_refs'])
+    else:
+        logger.info('The homologous site is defined by that a site must be in {} references'.format(total_number_refs))
+        cols_merged = col_tool_obj.merge_col_voting(pars['voting_threshold'], total_number_refs)
+
     logger.info('Consensus alignment reconstruction is completed!')
     merged = aln_builder(AlignIO.read('{}/{}'.format(alns, refs_header_names[0]), 'fasta'), cols_merged)
     opt_file = opt_dir + '/multiple_alignments_combination.fna'
