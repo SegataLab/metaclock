@@ -2,7 +2,7 @@
 
 MetaClock is an integrated framework for reconstructing time-resolved evolutionary history for microbial genomes using large-scale (meta)genomics data from ancient and contemporary samples. 
 
-![MetaClock](https://github.com/SegataLab/metaclock/blob/master/images/MetaClock_Logo.png "MetaClock")
+<br /><br /><br /><br /><br /><br />![MetaClock](https://github.com/SegataLab/metaclock/blob/master/images/MetaClock_Logo.png "MetaClock")
 ## Main features
 
 * Automated reconstruction of whole-genome alignment from large-scale metagenomics data using multiple reference genomes
