@@ -19,7 +19,7 @@ MetaClock is an integrated framework for reconstructing time-resolved evolutiona
 You can install MetaClock using conda as follows:
 
 ~~~Bash
-The package will be publically available once it is distributed
+The package will be publically available once the manuscript is submitted
 ~~~
 
 
@@ -28,7 +28,7 @@ The package will be publically available once it is distributed
 You can clone the MetaClock repository from GitHub:
 
 ~~~Bash
-The package will be publically available once it is distributed
+The package will be publically available once the manuscript is submitted
 ~~~
 Dependencies:
 
@@ -37,7 +37,7 @@ Dependencies:
 # Tutorials
 
 * [MetaClock User manual](https://github.com/SegataLab/metaclock/wiki/User-manual)
-* [MetaClock Tutorials]()
+* [MetaClock Tutorials](https://github.com/SegataLab/metaclock/wiki)
 
 
 # Support
