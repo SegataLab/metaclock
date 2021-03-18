@@ -9,7 +9,7 @@ MetaClock is an integrated framework for reconstructing time-resolved evolutiona
 * Automated authentication for ancient DNA origin, damaged sites removal, SNV analysis etc.
 * Rich utilities for manual curation to enhance the quality of phylogenetic and molecular dating analysis
 
- ![Overview](https://github.com/SegataLab/metaclock/blob/master/images/User_manual_overall_view.png "Overview")
+ 
 
 
 # Installation
