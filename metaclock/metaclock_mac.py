@@ -167,9 +167,10 @@ def main():
         # all samples' abs paths from path written in
         # config file and store them in a list,
         # and overwrites config with a list of sample paths
-        configs_list['modern_reads'][samples] = obtain_samples(configs_list[1]['samples'])
+        configs_list['modern_reads']['samples'] = obtain_samples(
+            configs_list['modern_reads']['samples'])
     else:
-        configs_list['modern_reads'] = None
+        configs_list['modern_reads']['samples'] = None
 
     if args.genome_assemlies:
         configs_list['contigs']['samples'] = abspath_finder(args.genome_assemlies)
