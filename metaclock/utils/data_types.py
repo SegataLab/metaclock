@@ -5,18 +5,18 @@ class ContigsType(object):
         self.input_type = 'contigs'
         self.reference_genome = reference_genome
         self.samples = samples
+        self.intermediate = kwargs.get('intermediate', '')
 
         if 'parameter_set' not in kwargs:
             raise TypeError('parameter_set is not provided')
-        param_set = kwargs['parameter_set']
+        parameter_set = kwargs['parameter_set']
 
-        self.intermediate = kwargs.get('intermediate', '')
         self.param_set = {}
-        self.param_set['homolog_length'] = param_set.get(
+        self.param_set['homolog_length'] = parameter_set.get(
                                             'homolog_length', 500)
-        self.param_set['homolog_identity'] = param_set.get(
+        self.param_set['homolog_identity'] = parameter_set.get(
                                             'homolog_identity', 95.0)
-        self.param_set['blastn_threads'] = param_set.get('blastn_threads', 6)
+        self.param_set['blastn_threads'] = parameter_set.get('blastn_threads', 6)
 
         self.validate()
 
@@ -56,17 +56,22 @@ class AncientReadsType(ReadsType):
 
         self.age_type = 1
         self.intermediate = kwargs.get('intermediate', 'intermediates')
+
+        if 'parameter_set' not in kwargs:
+            raise TypeError('parameter_set is not provided')
+        parameter_set = kwargs['parameter_set']
+
         self.param_set = {}
-        self.param_set['search_report_mode'] = kwargs.get('search_report_mode', '-k,5')
-        self.param_set['bowtie2_threads'] = kwargs.get('bowtie2_threads', 1)
-        self.param_set['minimum_mapping_quality'] = kwargs.get('minimum_mapping_quality', 30)
-        self.param_set['minimum_mapping_length'] = kwargs.get('minimum_mapping_length', 30)
-        self.param_set['maximum_snp_edit_distance'] = kwargs.get('maximum_snp_edit_distance', 0.03)
-        self.param_set['nproc'] = kwargs.get('nproc', 1)
-        self.param_set['minimum_coverage'] = kwargs.get('minimum_coverage', 5)
-        self.param_set['trim_distance'] = kwargs.get('trim_distance', '5:5')
-        self.param_set['dominant_allele_frequency'] = kwargs.get('dominant_allele_frequency', 0.8)
-        self.param_set['output_trimmed_reads'] = kwargs.get('output_trimmed_reads', 0)
+        self.param_set['search_report_mode'] = parameter_set.get('search_report_mode', '-k,5')
+        self.param_set['bowtie2_threads'] = parameter_set.get('bowtie2_threads', 1)
+        self.param_set['minimum_mapping_quality'] = parameter_set.get('minimum_mapping_quality', 30)
+        self.param_set['minimum_mapping_length'] = parameter_set.get('minimum_mapping_length', 30)
+        self.param_set['maximum_snp_edit_distance'] = parameter_set.get('maximum_snp_edit_distance', 0.03)
+        self.param_set['nproc'] = parameter_set.get('nproc', 1)
+        self.param_set['minimum_coverage'] = parameter_set.get('minimum_coverage', 5)
+        self.param_set['trim_distance'] = parameter_set.get('trim_distance', '5:5')
+        self.param_set['dominant_allele_frequency'] = parameter_set.get('dominant_allele_frequency', 0.8)
+        self.param_set['output_trimmed_reads'] = parameter_set.get('output_trimmed_reads', 0)
 
         self.validate()
 
@@ -118,15 +123,20 @@ class ModernReadsType(ReadsType):
 
         self.age_type = 2
         self.intermediate = kwargs.get('intermediate', 'intermediates')
+
+        if 'parameter_set' not in kwargs:
+            raise TypeError('parameter_set is not provided')
+        parameter_set = kwargs['parameter_set']
+
         self.param_set = {}
-        self.param_set['search_report_mode'] = kwargs.get('search_report_mode', '-k,5')
-        self.param_set['bowtie2_threads'] = kwargs.get('bowtie2_threads', 1)
-        self.param_set['minimum_mapping_quality'] = kwargs.get('minimum_mapping_quality', 30)
-        self.param_set['minimum_mapping_length'] = kwargs.get('minimum_mapping_length', 30)
-        self.param_set['maximum_snp_edit_distance'] = kwargs.get('maximum_snp_edit_distance', 0.03)
-        self.param_set['nproc'] = kwargs.get('nproc', 1)
-        self.param_set['minimum_coverage'] = kwargs.get('minimum_coverage', 5)
-        self.param_set['dominant_allele_frequency'] = kwargs.get('dominant_allele_frequency', 0.8)
+        self.param_set['search_report_mode'] = parameter_set.get('search_report_mode', '-k,5')
+        self.param_set['bowtie2_threads'] = parameter_set.get('bowtie2_threads', 1)
+        self.param_set['minimum_mapping_quality'] = parameter_set.get('minimum_mapping_quality', 30)
+        self.param_set['minimum_mapping_length'] = parameter_set.get('minimum_mapping_length', 30)
+        self.param_set['maximum_snp_edit_distance'] = parameter_set.get('maximum_snp_edit_distance', 0.03)
+        self.param_set['nproc'] = parameter_set.get('nproc', 1)
+        self.param_set['minimum_coverage'] = parameter_set.get('minimum_coverage', 5)
+        self.param_set['dominant_allele_frequency'] = parameter_set.get('dominant_allele_frequency', 0.8)
 
         self.validate()
 
