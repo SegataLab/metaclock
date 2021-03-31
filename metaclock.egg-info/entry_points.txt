@@ -1,0 +1,9 @@
+[console_scripts]
+bo6_screen.py = metaclock.utils.bo6_screen:main
+filter.py = metaclock.utils.filter:main
+metaclock_combiner = metaclock.metaclock_combiner:main
+metaclock_mac = metaclock.metaclock_mac:main
+metaclock_mac_template_configs = metaclock.utils.metaclock_mac_template_configs:main
+metaclock_tailor = metaclock.metaclock_tailor:main
+metaclock_visualizer = metaclock.metaclock_visualizer:main
+

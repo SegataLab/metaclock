@@ -1,0 +1,49 @@
+{
+  "ancient_reads": {
+    "input_type":"reads",
+    "reference_genome":"",
+    "age_type":1,
+    "intermediate":"",
+    "samples":"",
+    "parameter_set":{
+      "search_report_mode":"-k,5",
+      "bowtie2_threads":10,
+      "minimum_mapping_quality":30,
+      "minimum_mapping_length":30,
+      "maximum_snp_edit_distance":0.03,
+      "nproc":5,
+      "minimum_coverage":5,
+      "trim_distance":"5:5",
+      "dominant_allele_frequency":0.8,
+      "output_trimmed_reads":0
+    }
+  },
+  "modern_reads": {
+    "input_type":"reads",
+    "reference_genome":"",
+    "age_type":2,
+    "intermediate":"",
+    "samples":"",
+    "parameter_set":{
+      "search_report_mode":"-k,1",
+      "bowtie2_threads":15,
+      "minimum_mapping_quality":30,
+      "minimum_mapping_length":30,
+      "maximum_snp_edit_distance":0.03,
+      "nproc":5,
+      "minimum_coverage":5,
+      "dominant_allele_frequency":0.8
+    }
+  },
+  "contigs": {
+    "input_type":"contigs",
+    "reference_genome":"",
+    "intermediate":"",
+    "samples":"",
+    "parameter_set":{
+      "homolog_length":500,
+      "homolog_identity":95,
+      "blastn_threads":10
+    }
+  }
+}
