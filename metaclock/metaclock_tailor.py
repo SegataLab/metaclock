@@ -687,8 +687,7 @@ def main():
                 logger.info('RAxML tree reconstruction is completed and outputs are in: {}'.format(opt_dir))
             else:
                 logger.info('ML phylogeny was skipped!')
-                
-            logger.info("Thanks for using and welcome back!")
+
         else:
             sys.exit('Please choose one of these tailor strategies: automated tailoring or target tailoring.')
 

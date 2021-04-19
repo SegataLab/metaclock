@@ -90,9 +90,10 @@ def draw_SNV_rates(snv_rates, opt_dir = os.getcwd()):
     df_ = pd.DataFrame(snv_rates, columns = ['Taxa_x', 'Taxa_y', 'SNP_rate', 'gap_ratio'])
     df_["SNP_rate"] = pd.to_numeric(df_["SNP_rate"])
     df_combine = df_[df_.Taxa_x != df_.Taxa_y]
-    df_combine.to_csv('pairwise_snv_rates.tsv', index = False, sep = '\t')
+    df_combine.to_csv(opt_dir + '/pairwise_snv_rates.tsv', index = False, sep = '\t')
     fig1, ax1 = plt.subplots()
     fig2, ax2 = plt.subplots()
+    fig3, ax3 = plt.subplots()
 
     rates = df_.pivot("Taxa_x", "Taxa_y", "SNP_rate")
     x = df_combine['SNP_rate']
@@ -101,9 +102,16 @@ def draw_SNV_rates(snv_rates, opt_dir = os.getcwd()):
     ax.set_ylabel("")
     ax.set_xlabel("")
     fig1.savefig(opt_dir + '/snv_rates_heatmap.png', bbox = 'tight')
+    fig1.savefig(opt_dir + '/snv_rates_heatmap.svg', bbox = 'tight')
 
-    sns.distplot(x, kde = True, bins = 100, norm_hist=True, ax = ax2)
+    sns.distplot(x, kde = True, bins = 100, norm_hist=True, ax = ax2).set(xlim=(0))
     fig2.savefig(opt_dir + '/snv_rates_distribution.png', bbox = 'tight')
+
+    sns.distplot(x, kde = True, bins = 100, norm_hist=True, ax = ax3).set(xlim=(0))
+    fig3.savefig(opt_dir + '/snv_rates_distribution.svg', bbox = 'tight')
+
+
+
 
 
 

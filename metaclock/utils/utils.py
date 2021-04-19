@@ -296,9 +296,13 @@ def draw_damage_pattern(G2A_files, C2T_files, opt_dir):
     print(df_)
     
     fig, ax = plt.subplots()
+    fig2, ax2 = plt.subplots()
+
     sns.relplot(x="Positions", y="Frequency", kind = "line", data = df_, col = 'Substitution type', ax = ax)
     plt.savefig(opt_dir + '/damage_pattern.png', dpi=300, bbox_inches = 'tight')
 
+    sns.relplot(x="Positions", y="Frequency", kind = "line", data = df_, col = 'Substitution type', ax = ax2)
+    plt.savefig(opt_dir + '/damage_pattern.svg', dpi=300, bbox_inches = 'tight')
 
 
 
