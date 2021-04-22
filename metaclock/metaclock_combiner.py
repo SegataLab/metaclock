@@ -674,7 +674,7 @@ def main():
     cleaned_blastn = QC_on_blastn(raw_blastn_opt, pars['length'], pars['identity'], inter)
     logger.info('Cleaning is completed and the results are in {}....'.format(cleaned_blastn))
 
-    logger.info('Start partitioning data for speeding up computtaion using multiple processors....')
+    logger.info('Start partitioning data for speeding up computation using multiple processors....')
 
     partioned_matrice = {pair: partition_genomes(cleaned_blastn)[pair] for pair in ref_sub_groups}
 
