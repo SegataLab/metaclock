@@ -28,7 +28,7 @@ The package will be publically available once the manuscript is submitted
 You can clone the MetaClock repository from GitHub:
 
 ~~~Bash
-The package will be publically available once the manuscript is submitted
+git clone https://github.com/SegataLab/metaclock.git
 ~~~
 Dependencies:
 
