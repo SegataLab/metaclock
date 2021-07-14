@@ -1,9 +1,15 @@
+{% set name = "metaclock" %}
+{% set version = "1.0.0" %}
+
+
+
 package:
-  name: metaclock
-  version: 1.0.0
+  name:  "{{ name }}"
+  version:  "{{ version }}"
 
 source:
-  path: ../../metaclock
+  url: https://github.com/SegataLab/metaclock/archive/{{ version }}.tar.gz
+  sha256: 146e6e8b5c8d62dc958a41cfb5a53cae9cc57bbc1da82d4020b217aafc180429
 
 build:
   noarch: python
@@ -37,5 +43,13 @@ requirements:
     - ete3
     - dendropy
     - raxml
+test:
+  commands:
+    - metaclock_mac --help
+    - metaclock_visualizer --help
+    - metaclock_tailor --help
+    - metaclock_combiner --help
+
 about:
-  summary: This is a simple test for metaclock package
+  home: https://github.com/SegataLab/metaclock
+  summary: A python package for facilitating strain-level phylogenetic and molecular clock analysis
