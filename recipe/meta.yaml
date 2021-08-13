@@ -52,4 +52,5 @@ test:
 
 about:
   home: https://github.com/SegataLab/metaclock
+  license: A-GPL 3.0
   summary: A python package for facilitating strain-level phylogenetic and molecular clock analysis
