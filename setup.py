@@ -35,7 +35,7 @@ setuptools.setup(name='metaclock',
                          'filter.py = metaclock.utils.filter:main',
                          'metaclock_mac_template_configs = metaclock.utils.metaclock_mac_template_configs:main'
                  ]},
-                 description='metaclock package test',
+                 description='metaclock package for supporting microbial phylogeny and clocking analysis',
                  include_package_data=True,
                  long_description=open('README.md').read(),
                  long_description_content_type='text/markdown',
