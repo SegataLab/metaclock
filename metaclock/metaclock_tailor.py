@@ -612,7 +612,7 @@ def visual(tab, opt):
     fig_ax5 = fig.add_subplot(spec[1, 1])
     fig_ax5.set_xlabel('Average pairwise genetic distances', fontsize = 16)
     fig_ax5.set_ylabel('Count', fontsize = 16)
-    fig_ax5.tick_params(axis = 'both', which = 'mahor', labelsize = 13)
+    fig_ax5.tick_params(axis = 'both', which = 'major', labelsize = 13)
     utils.hist_plot(fig_ax5, v5, {'bins': 200})
 
     fig_ax6 = fig.add_subplot(spec[1, 2])
