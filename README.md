@@ -22,6 +22,23 @@ You can install MetaClock using conda as follows:
 The package will be publically available once the manuscript is submitted
 ~~~
 
+## Private conda channel
+
+Temporarily, you can install MetaClock thorough a private conda channel. But this lead will be closed once bioconda channel is ready.
+
+~~~Bash
+conda create -n metaclock -c khuang16 -c compbiocore -c kantorlab -c bioconda -c conda-forge metaclock
+~~~
+
+Due to the dependency bowtie2 is encountering tbb-related issue, after metaclock installation is completed please manually install tbb library as described below:
+
+~~~
+conda activate metaclock
+~~~
+
+~~~
+conda install tbb=2020.2
+~~~
 
 ## Repository
 
