@@ -24,7 +24,7 @@ The package will be publically available once the manuscript is submitted
 
 ## Private conda channel
 
-Temporarily, you can install MetaClock thorough a private conda channel. But this lead will be closed once bioconda channel is ready.
+Temporarily, you can install MetaClock through a private conda channel. But this option will be replaced once bioconda channel is ready.
 
 ~~~Bash
 conda create -n metaclock -c khuang16 -c compbiocore -c kantorlab -c bioconda -c conda-forge metaclock
