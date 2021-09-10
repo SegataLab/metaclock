@@ -6,7 +6,6 @@ import shutil
 import os
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
-from Bio.Alphabet import generic_dna
 from Bio.Seq import Seq
 from datetime import datetime
 
@@ -38,8 +37,7 @@ def extract_refseq(alns, inter):
         aln_seq = aln_dict[label].seq
         aln_opt = inter + '/' + label
         opt_aln_lst.append(aln_opt)
-        rec_lst.append(SeqRecord(Seq(str(aln_seq),\
-         generic_dna), id = aln_id, description = ''))
+        rec_lst.append(SeqRecord(Seq(str(aln_seq)), id = aln_id, description = ''))
         SeqIO.write(rec_lst, aln_opt, 'fasta')
         sys.stdout.write('{} Reference genome has been extracted for annotation: {}\n'.format(time_now(), aln_opt))
 
