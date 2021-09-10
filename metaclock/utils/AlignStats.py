@@ -2,7 +2,6 @@
 
 import itertools
 from Bio.Align import MultipleSeqAlignment
-from Bio.Alphabet import IUPAC, Gapped
 from Bio import AlignIO
 import sys
 from Bio.Phylo.TreeConstruction import DistanceCalculator

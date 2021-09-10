@@ -19,7 +19,6 @@ from .metaclock_mac import blast_genomes
 from .metaclock_mac import QC_on_blastn
 from .metaclock_mac import blastn_sort
 from .metaclock_mac import complement_seq
-from Bio.Alphabet import IUPAC, Gapped
 from Bio.Align import MultipleSeqAlignment
 from .utils import utils
 from collections import ChainMap
@@ -314,7 +313,7 @@ def reorder_aln(aln):
     It reorders order of taxa name in the alignment in alphabetical order. 
     """
 
-    align = MultipleSeqAlignment([], Gapped(IUPAC.unambiguous_dna, "-"))
+    align = MultipleSeqAlignment([])
     reorder = sorted(record.id for record in aln)
     
     for new_header in reorder:

@@ -4,7 +4,6 @@ import os, sys
 from Bio import AlignIO
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
-from Bio.Alphabet import generic_dna, IUPAC, Gapped
 from Bio.Seq import Seq
 import itertools
 import collections
