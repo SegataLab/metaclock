@@ -16,10 +16,14 @@ MetaClock is an integrated framework for reconstructing time-resolved evolutiona
 
 ## Bioconda
 
-You can install MetaClock using conda as follows:
+You can install MetaClock in an isolated environment using conda as follows:
 
 ~~~Bash
-The package will be publically available once the manuscript is submitted
+conda create -n mc -c bioconda metaclock
+~~~
+
+~~~Bash
+conda activate mc
 ~~~
 
 ## Private conda channel
@@ -58,6 +62,7 @@ Dependencies:
 
 
 # Support
-
+Please post your issues in our [metaclock issues section](https://github.com/SegataLab/metaclock/issues)
 
 # Citation
+If you think our tool is helpful for your research please cite https://github.com/SegataLab/metaclock. Note: citation source will be updated soon when manuscript is published. Thank you for your patience!  
