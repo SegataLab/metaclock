@@ -13,7 +13,7 @@ if sys.version_info[0] < 3:
 install_reqs = ["biopython", "matplotlib", "numpy", "pandas", "seaborn"]
 
 setuptools.setup(name='metaclock',
-                 version='1.0.2',
+                 version='1.0.1',
                  author='Kun D. Huang',
                  author_email='kun.huang@unitn.it',
                  # url='',
