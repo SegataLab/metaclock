@@ -320,11 +320,11 @@ def reorder_aln(aln):
         for old_aln_record in aln:
             r_id = str(old_aln_record.id)
             r_seq = str(old_aln_record.seq)
+            add_seq = SeqRecord(r_seq, id = new_header)
             if new_header == r_id:
-                align.add_sequence(new_header, r_seq)
+                align.append(add_seq)
             else:
                 continue
-
     return align
 
 
